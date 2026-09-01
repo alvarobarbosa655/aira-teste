@@ -50,31 +50,42 @@ st.markdown("""
         display: inline-block;
         margin-bottom: 8px;
     }
+    .hero-title {
+        color: #1B4332;
+        font-weight: 800;
+        font-size: 2.2rem;
+        margin-bottom: 0px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 1. CONTROLE DE SESSÃO / LOGIN INTELIGENTE
+# 1. CONTROLE DE SESSÃO / TELA DE LOGIN VISUAL COM IMAGENS DO SERTÃO
 # -------------------------------------------------------------
 SENHA_CORRETA = "unimontes2026"
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
-# Se não estiver logado, exibe apenas a tela de entrada elegante
+# Se não estiver logado, exibe a tela de login visual com galeria do sertão
 if not st.session_state.autenticado:
-    col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
-    with col_l2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.image("https://img.icons8.com/fluency/96/natural-food.png", width=80)
-        st.title("Projeto AIRA • Unimontes")
-        st.subheader("Sistema Inteligente de Diagnóstico e Recuperação de Áreas Degradadas")
-        st.caption("Acesso Restrito: Pesquisadores, Bolsistas e Parceiros (CI-Brasil / NOVE Global)")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col_login, col_galeria = st.columns([1.1, 1.4], gap="large")
+    
+    with col_login:
+        st.markdown("<p class='hero-title'>🌿 Projeto AIRA</p>", unsafe_allow_html=True)
+        st.markdown("### **Diagnóstico & Restauração de Áreas Degradadas**")
+        st.caption("Universidade Estadual de Montes Claros • Unimontes")
+        st.caption("Parceria: Conservação Internacional (CI-Brasil) & NOVE Global")
         st.markdown("---")
         
+        st.markdown("#### 🔐 Acesso Restrito à Equipe Técnica")
+        st.info("Painel de inteligência multimodal para ecótonos do Norte de Minas.")
+        
         with st.form("form_login"):
-            senha_input = st.text_input("🔑 Digite o Código de Acesso do Projeto:", type="password", placeholder="Digite sua senha...")
-            btn_entrar = st.form_submit_button("Acessar Painel do Agente", type="primary", use_container_width=True)
+            senha_input = st.text_input("Digite o Código de Acesso do Projeto:", type="password", placeholder="Digite sua senha...")
+            btn_entrar = st.form_submit_button("🚀 Acessar Painel do Agente", type="primary", use_container_width=True)
             
             if btn_entrar:
                 if senha_input == SENHA_CORRETA:
@@ -82,6 +93,24 @@ if not st.session_state.autenticado:
                     st.rerun()
                 else:
                     st.error("Código de acesso incorreto. Tente novamente.")
+                    
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.caption("💡 Senha padrão de desenvolvimento: `unimontes2026`")
+
+    with col_galeria:
+        st.markdown("### 🌵 Biomas & Fisionomias do Sertão Mineiro")
+        st.caption("Zonas de transição ecológica monitoradas pelo sistema AIRA:")
+        
+        g_col1, g_col2 = st.columns(2)
+        
+        with g_col1:
+            st.image("https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=500&q=80", caption="🌾 Cerrado & Campos do Norte de MG", use_container_width=True)
+            st.image("https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=500&q=80", caption="🌵 Caatinga Hiperxerófila (Sertão)", use_container_width=True)
+            
+        with g_col2:
+            st.image("https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=500&q=80", caption="🍂 Mata Seca (Floresta Caducifólia)", use_container_width=True)
+            st.image("https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=500&q=80", caption="💧 Veredas & Nascentes com Buritis", use_container_width=True)
+
     st.stop()
 
 # -------------------------------------------------------------
