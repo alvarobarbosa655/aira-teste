@@ -68,7 +68,7 @@ GALERIA_BIOMAS = [
 # ==========================================================================
 
 class EspecificacaoPlantio(BaseModel):
-    espacamento_tecnico: str = Field(..., description="Ex: 3x3 metros em quincôncio (1.111 mudas/ha)")
+    espacamento_tecnico: str = Field(..., description="Ex: 3x3 metros (1.111 mudas/ha)")
     qtd_mudas_por_hectare: int = Field(..., description="Quantidade estimada de mudas por hectare")
     valor_unitario_medio_muda: float = Field(..., description="Valor unitário médio da muda em reais (R$)")
     custo_total_mudas_ha: float = Field(..., description="Custo total de mudas por hectare em reais (R$)")
@@ -199,7 +199,7 @@ def encerrar_sessao():
     st.session_state.diagnostico = None
 
 # ==========================================================================
-# ESTILO VISUAL CORPORATIVO / ACADÊMICO
+# ESTILO VISUAL CORPORATIVO / RESPONSIVO (SEM CORTE DE TEXTO)
 # ==========================================================================
 st.markdown(
     """
@@ -237,7 +237,7 @@ st.markdown(
         border-left: 6px solid #1E40AF;
         border-radius: 6px;
         padding: 1.25rem;
-        margin-bottom: 1rem;
+        margin-bottom: 1.25rem;
     }
     .tag-ecotono {
         background-color: #EFF6FF;
@@ -254,10 +254,40 @@ st.markdown(
         font-size: 1.4rem;
         font-weight: 700;
         color: #0F172A;
-        line-height: 1.3;
+        line-height: 1.35;
         margin-bottom: 0.5rem;
         word-wrap: break-word;
         white-space: normal;
+    }
+    
+    /* Box responsivo para evitar qualquer corte com reticências (...) */
+    .box-indicador {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 1rem 1.1rem;
+        min-height: 90px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .rotulo-indicador {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.35rem;
+    }
+    .valor-indicador {
+        font-size: 1.18rem;
+        font-weight: 700;
+        color: #0F172A;
+        line-height: 1.35;
+        white-space: normal;
+        word-break: break-word;
     }
     
     .card-semana-exec {
@@ -429,7 +459,7 @@ if btn_processar:
                 st.error(f"Falha no processamento: {ex}")
 
 # ==========================================================================
-# EXIBIÇÃO DOS RESULTADOS EM ABAS TÉCNICAS
+# EXIBIÇÃO DOS RESULTADOS EM ABAS TÉCNICAS (SEM CORTE DE TEXTO)
 # ==========================================================================
 if st.session_state.diagnostico:
     d: DiagnosticoCompleto = st.session_state.diagnostico
@@ -448,7 +478,6 @@ if st.session_state.diagnostico:
     # ABA 1: CLASSIFICAÇÃO DA FITOFISIONOMIA E DIAGNÓSTICO
     # -------------------------------------------------------------
     with aba_bioma:
-        # Card amplo e responsivo para o nome do Bioma sem truncamento de texto
         st.markdown(
             f"""
             <div class="card-bioma-destaque">
@@ -464,11 +493,36 @@ if st.session_state.diagnostico:
 
         col_stat1, col_stat2, col_stat3 = st.columns(3)
         with col_stat1:
-            st.metric("Grau de Degradação", d.grau_degradacao)
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Grau de Degradação</div>
+                    <div class="valor-indicador">{d.grau_degradacao}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         with col_stat2:
-            st.metric("Tempo Previsto de Recuperação", d.tempo_estimado_recuperacao)
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Tempo Previsto de Recuperação</div>
+                    <div class="valor-indicador">{d.tempo_estimado_recuperacao}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         with col_stat3:
-            st.metric("Enquadramento Orçamentário", "Conforme" if d.dentro_do_teto_16k else "Excede Teto")
+            enquadramento_txt = "Conforme (Dentro da Meta)" if d.dentro_do_teto_16k else "Excede Teto Orçamentário"
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Enquadramento Orçamentário</div>
+                    <div class="valor-indicador">{enquadramento_txt}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         st.markdown("##### Fatores Críticos e Limitantes do Terreno")
         for fator in d.principais_fatores_criticos:
@@ -513,9 +567,36 @@ if st.session_state.diagnostico:
         st.markdown("##### Parâmetros Silviculturais e Densidade de Mudas")
 
         col_p1, col_p2, col_p3 = st.columns(3)
-        col_p1.metric("Espaçamento Técnico", p.espacamento_tecnico)
-        col_p2.metric("Densidade Recomendada", f"{p.qtd_mudas_por_hectare:,} mudas/ha")
-        col_p3.metric("Valor Médio / Muda", f"R$ {p.valor_unitario_medio_muda:,.2f}")
+        with col_p1:
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Espaçamento Técnico</div>
+                    <div class="valor-indicador">{p.espacamento_tecnico}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col_p2:
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Densidade Recomendada</div>
+                    <div class="valor-indicador">{p.qtd_mudas_por_hectare:,} mudas/ha</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with col_p3:
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Valor Médio / Muda</div>
+                    <div class="valor-indicador">R$ {p.valor_unitario_medio_muda:,.2f}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         st.markdown(f"**Custo Total de Aquisição de Mudas:** R$ {p.custo_total_mudas_ha:,.2f} / hectare")
         st.divider()
@@ -542,13 +623,26 @@ if st.session_state.diagnostico:
 
         col_o1, col_o2 = st.columns(2)
         with col_o1:
-            st.metric("Custo Global Estimado", f"R$ {d.custo_total_estimado_por_ha:,.2f} / ha")
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Custo Global Estimado</div>
+                    <div class="valor-indicador">R$ {d.custo_total_estimado_por_ha:,.2f} / ha</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         with col_o2:
             saldo = TETO_CUSTO_HA - d.custo_total_estimado_por_ha
-            st.metric(
-                "Teto Conservação Internacional (R$ 16.000,00)",
-                "Conforme" if d.dentro_do_teto_16k else "Não Conforme",
-                delta=f"Margem: R$ {saldo:,.2f}",
+            status_teto = "Conforme (Dentro da Meta)" if d.dentro_do_teto_16k else "Não Conforme"
+            st.markdown(
+                f"""
+                <div class="box-indicador">
+                    <div class="rotulo-indicador">Teto Conservação Internacional (R$ 16.000,00)</div>
+                    <div class="valor-indicador">{status_teto} <span style="font-size:0.9rem;font-weight:500;color:#16A34A;">(Saldo: R$ {saldo:,.2f})</span></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         if d.dentro_do_teto_16k:
