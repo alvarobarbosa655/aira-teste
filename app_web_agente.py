@@ -199,7 +199,7 @@ def encerrar_sessao():
     st.session_state.diagnostico = None
 
 # ==========================================================================
-# ESTILO VISUAL CORPORATIVO / RESPONSIVO (SEM CORTE DE TEXTO)
+# ESTILO VISUAL CORPORATIVO / RESPONSIVO
 # ==========================================================================
 st.markdown(
     """
@@ -221,14 +221,6 @@ st.markdown(
         color: #475569;
         font-size: 0.95rem;
         font-weight: 500;
-    }
-    
-    .card-login-box {
-        background: #FFFFFF;
-        border-radius: 8px;
-        padding: 2rem;
-        border: 1px solid #CBD5E1;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     
     .card-bioma-destaque {
@@ -260,7 +252,6 @@ st.markdown(
         white-space: normal;
     }
     
-    /* Box responsivo para evitar qualquer corte com reticências (...) */
     .box-indicador {
         background-color: #FFFFFF;
         border: 1px solid #E2E8F0;
@@ -304,7 +295,7 @@ st.markdown(
 )
 
 # ==========================================================================
-# TELA DE AUTENTICAÇÃO
+# TELA DE AUTENTICAÇÃO (SEM CAIXA BRANCA VAZIA)
 # ==========================================================================
 if not st.session_state.autenticado:
     st.markdown(
@@ -317,23 +308,23 @@ if not st.session_state.autenticado:
         unsafe_allow_html=True,
     )
 
-    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+    col_l1, col_l2, col_l3 = st.columns([1, 1.3, 1])
     with col_l2:
-        st.markdown('<div class="card-login-box">', unsafe_allow_html=True)
-        st.markdown("#### Autenticação Técnica")
-        st.caption("Acesso restrito a pesquisadores e corpo técnico credenciado.")
-        
-        st.text_input(
-            "Código de Acesso do Projeto",
-            type="password",
-            key="campo_senha",
-            placeholder="Insira a credencial técnica",
-        )
-        st.button("Acessar Painel", type="primary", use_container_width=True, on_click=autenticar)
-        
-        if st.session_state.erro_login:
-            st.error("Credencial inválida. Consulte a coordenação do projeto.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Usando container nativo com borda para envelopar perfeitamente o formulário
+        with st.container(border=True):
+            st.markdown("#### Autenticação Técnica")
+            st.caption("Acesso restrito a pesquisadores e corpo técnico credenciado.")
+            
+            st.text_input(
+                "Código de Acesso do Projeto",
+                type="password",
+                key="campo_senha",
+                placeholder="Insira a credencial técnica",
+            )
+            st.button("Acessar Painel", type="primary", use_container_width=True, on_click=autenticar)
+            
+            if st.session_state.erro_login:
+                st.error("Credencial inválida. Consulte a coordenação do projeto.")
 
     st.write("")
     st.markdown("##### Fitofisionomias de Referência no Norte de Minas Gerais")
