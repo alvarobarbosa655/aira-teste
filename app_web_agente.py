@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+import time
 import warnings
 from pydantic import BaseModel, Field
 from typing import Literal, List
@@ -10,150 +11,295 @@ from google.genai import types
 warnings.filterwarnings("ignore")
 
 # Configuração da página Web
-st.set_page_config(page_title="AIRA - Diagnóstico Ambiental (Unimontes)", page_icon="🌿", layout="wide")
+st.set_page_config(
+    page_title="AIRA - Sistema Inteligente de Recuperação Ambiental",
+    page_icon="🌿",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# 1. Molde Pydantic com suporte a Zonas de Transição Ecológica
-class DiagnosticoAmbiental(BaseModel):
-    bioma_ou_transicao: str = Field(description="Bioma ou zona de transição/ecótono identificada")
-    eh_zona_transicao: bool = Field(description="True se for uma área de transição/interseção ecológica")
-    grau_degradacao: Literal["Baixo", "Medio", "Alto", "Critico"] = Field(description="Nível de degradação da área")
-    principais_problemas: List[str] = Field(description="Problemas encontrados no terreno")
-    intervencao_sugerida: str = Field(description="Recomendação técnica de manejo adaptada à fisionomia regional")
-    especies_recomendadas: List[str] = Field(description="Exemplos de espécies nativas recomendadas para o bioma")
-    custo_estimado_por_hectare: float = Field(description="Custo em reais por hectare")
-    viavel_orcamento_16k: bool = Field(description="True se o custo for até R$ 16.000,00 por hectare")
+# Estilização CSS personalizada para um design moderno e executivo
+st.markdown("""
+<style>
+    .main { background-color: #F8FAFC; }
+    .stMetric {
+        background-color: #FFFFFF;
+        padding: 14px;
+        border-radius: 10px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .card-semana {
+        background: #FFFFFF;
+        border-left: 5px solid #2D6A4F;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        border-top: 1px solid #E2E8F0;
+        border-right: 1px solid #E2E8F0;
+        border-bottom: 1px solid #E2E8F0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    }
+    .badge-transicao {
+        background-color: #E0F2FE;
+        color: #0369A1;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Chave do Gemini fica 100% segura e oculta no backend
-API_KEY_INTERNA = "AQ.Ab8RN6J_WWIvdIYEylXVXAXULnbzv1pHGqovRdnzmdaQQcPQ2g"
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY", API_KEY_INTERNA))
-
-# Senha simples de acesso do projeto
+# -------------------------------------------------------------
+# 1. CONTROLE DE SESSÃO / LOGIN INTELIGENTE
+# -------------------------------------------------------------
 SENHA_CORRETA = "unimontes2026"
 
-# Barra lateral limpa e profissional
-with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/natural-food.png", width=64)
-    st.title("Painel AIRA")
-    st.caption("Universidade Estadual de Montes Claros • Unimontes")
-    st.caption("Projeto Conservação Internacional / NOVE Global")
-    st.markdown("---")
-    
-    # Campo amigável de Senha de Acesso
-    senha_digitada = st.text_input("🔐 Senha de Acesso ao Projeto:", type="password", value="unimontes2026", help="Senha padrão do projeto: unimontes2026")
-    
-    if senha_digitada == SENHA_CORRETA:
-        st.success("🟢 Acesso Liberado")
-    else:
-        st.error("🔴 Acesso Bloqueado")
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
 
-# --- INTERFACE VISUAL (TELA) ---
-st.title("🌿 Projeto AIRA / Unimontes")
-st.subheader("Painel Inteligente de Diagnóstico e Recuperação de Áreas Degradadas")
-st.caption("Desenvolvido para zonas de transição ecológica no Norte de Minas (Mata Seca, Caatinga, Cerrado e Veredas)")
+# Se não estiver logado, exibe apenas a tela de entrada elegante
+if not st.session_state.autenticado:
+    col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
+    with col_l2:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.image("https://img.icons8.com/fluency/96/natural-food.png", width=80)
+        st.title("Projeto AIRA • Unimontes")
+        st.subheader("Sistema Inteligente de Diagnóstico e Recuperação de Áreas Degradadas")
+        st.caption("Acesso Restrito: Pesquisadores, Bolsistas e Parceiros (CI-Brasil / NOVE Global)")
+        st.markdown("---")
+        
+        with st.form("form_login"):
+            senha_input = st.text_input("🔑 Digite o Código de Acesso do Projeto:", type="password", placeholder="Digite sua senha...")
+            btn_entrar = st.form_submit_button("Acessar Painel do Agente", type="primary", use_container_width=True)
+            
+            if btn_entrar:
+                if senha_input == SENHA_CORRETA:
+                    st.session_state.autenticado = True
+                    st.rerun()
+                else:
+                    st.error("Código de acesso incorreto. Tente novamente.")
+    st.stop()
+
+# -------------------------------------------------------------
+# 2. MODELO DE DADOS AVANÇADO (PYDANTIC)
+# -------------------------------------------------------------
+class EtapaSemanal(BaseModel):
+    semana_num: int = Field(description="Número da semana (1, 2, 3 ou 4)")
+    titulo_fase: str = Field(description="Ex: Isolamento e Controle de Invasoras")
+    acoes_principais: List[str] = Field(description="Passo a passo prático de campo")
+    insumos_e_ferramentas: str = Field(description="Ferramentas, mudas ou insumos necessários")
+
+class EspecificacaoPlantio(BaseModel):
+    espacamento_tecnico: str = Field(description="Ex: 3x3 metros em quincôncio (1.111 mudas/ha)")
+    qtd_mudas_por_hectare: int = Field(description="Quantidade estimada de mudas por hectare")
+    valor_unitario_medio_muda: float = Field(description="Valor médio por muda em reais (ex: 4.50)")
+    custo_total_mudas_ha: float = Field(description="Custo total com mudas por hectare")
+    tecnica_preparo_coveamento: str = Field(description="Dimensões da cova (ex: 40x40x40cm), adubação e calagem")
+    controle_erosao_e_voçorocas: str = Field(description="Recomendação para ravinas/voçorocas (ex: paliçadas de bambu)")
+    especies_nativas_recomendadas: List[str] = Field(description="Lista com pelo menos 4 espécies nativas recomendadas para o bioma")
+
+class DiagnosticoCompleto(BaseModel):
+    bioma_ou_transicao: str = Field(description="Bioma ou zona de transição identificada")
+    eh_zona_transicao: bool = Field(description="True se for área de ecótono / transição")
+    grau_degradacao: Literal["Baixo", "Medio", "Alto", "Critico"]
+    principais_fatores_criticos: List[str] = Field(description="Problemas que causaram a degradação")
+    resumo_diagnostico: str = Field(description="Parecer técnico detalhado do especialista")
+    especificacao_plantio: EspecificacaoPlantio
+    cronograma_4_semanas: List[EtapaSemanal]
+    custo_total_estimado_por_ha: float = Field(description="Custo global por hectare (insumos + mudas + mão de obra)")
+    dentro_do_teto_16k: bool = Field(description="True se o custo for até R$ 16.000,00")
+    tempo_estimado_recuperacao: str = Field(description="Ex: 2 a 3 anos com monitoramento bianual")
+
+# Chave do Gemini
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY", ""))
+
+# -------------------------------------------------------------
+# 3. INTERFACE PRINCIPAL (USUÁRIO LOGADO)
+# -------------------------------------------------------------
+with st.sidebar:
+    st.image("https://img.icons8.com/fluency/96/natural-food.png", width=60)
+    st.markdown("### **Projeto AIRA**")
+    st.caption("Universidade Estadual de Montes Claros • Unimontes")
+    st.caption("Parceria: Conservação Internacional / NOVE Global")
+    st.markdown("---")
+    st.markdown("👤 **Usuário:** Pesquisador Autorizado")
+    st.markdown("🟢 **Status:** Conectado à IA Especialista")
+    
+    if st.button("🚪 Sair do Sistema", use_container_width=True):
+        st.session_state.autenticado = False
+        st.rerun()
+
+# Cabeçalho Principal
+st.title("🌿 AIRA • Painel de Diagnóstico e Plano de Manejo")
+st.caption("Inteligência Artificial Multimodal para Recuperação de Áreas Degradadas no Norte de Minas")
 st.markdown("---")
 
-col1, col2 = st.columns([1, 1])
+col_esq, col_dir = st.columns([1.1, 1.3])
 
-with col1:
-    st.markdown("### 🛰️ 1. Dados de Satélite e Campo")
+with col_esq:
+    st.markdown("### 🛰️ 1. Parâmetros de Sensoriamento e Campo")
     
-    nome_area = st.text_input("Nome da Propriedade / Talhão:", value="Fazenda Piloto 40ha")
-    
-    opcoes_biomas = [
-        "Transição: Mata Seca ⇄ Caatinga (Ecótono)",
-        "Transição: Cerrado ⇄ Mata Seca",
-        "Transição: Vereda ⇄ Cerrado",
-        "Mata Seca (Caducifólia)",
-        "Caatinga",
-        "Cerrado Típico",
-        "Vereda (Área Úmida)"
-    ]
-    bioma_selecionado = st.selectbox("Classificação Fisionômica / Bioma:", opcoes_biomas)
-    
-    tamanho_ha = st.number_input("Tamanho da Área (Hectares):", min_value=1.0, value=40.0, step=1.0)
-    
-    st.markdown("#### Indicadores de Sensoriamento Remoto (Sentinel / MDE):")
-    ndvi = st.slider("Índice NDVI (Vigor da Vegetação):", min_value=0.0, max_value=1.0, value=0.52, step=0.01)
-    relevo = st.selectbox("Declividade / Relevo:", ["Plano", "Ondulado / Acidentado", "Serra / Muito Íngreme"])
-    
-    st.markdown("#### Observações Coletadas em Campo (App Mobile):")
-    problemas_selecionados = st.multiselect(
-        "Problemas e Feições no Terreno:",
-        [
-            "Presença de Voçoroca / Ravinas Profundas", 
-            "Infestação de Capim Braquiária", 
-            "Solo Arenoso / Baixa Matéria Orgânica", 
-            "Indícios de Queimada Recente", 
-            "Ausência de Mudas Nativas",
-            "Solo Exposto e Compactado"
-        ],
-        default=["Presença de Voçoroca / Ravinas Profundas", "Infestação de Capim Braquiária"]
-    )
-    
-    botao_analisar = st.button("🚀 Executar Diagnóstico com Agente de IA", type="primary", use_container_width=True)
+    with st.expander("📍 Identificação da Propriedade", expanded=True):
+        nome_area = st.text_input("Nome da Propriedade / Talhão:", value="Fazenda Piloto 40ha - Norte de MG")
+        tamanho_ha = st.number_input("Área a Recuperar (Hectares):", min_value=1.0, value=40.0, step=1.0)
+        
+        opcoes_biomas = [
+            "Transição: Mata Seca ⇄ Caatinga (Ecótono)",
+            "Transição: Cerrado ⇄ Mata Seca",
+            "Transição: Vereda ⇄ Cerrado",
+            "Mata Seca (Caducifólia)",
+            "Caatinga Hiperxerófila",
+            "Cerrado Típico (Stricto Sensu)",
+            "Vereda (Zona Hidromórfica)"
+        ]
+        bioma_selecionado = st.selectbox("Classificação Fisionômica / Bioma:", opcoes_biomas)
 
-with col2:
-    st.markdown("### 📋 2. Diagnóstico e Plano de Manejo Gerado")
+    with st.expander("📡 Dados de Satélite (Sentinel-2 / MDE)", expanded=True):
+        ndvi = st.slider("Índice NDVI (Vigor Vegetativo):", min_value=0.0, max_value=1.0, value=0.48, step=0.01,
+                         help="Valores abaixo de 0.50 indicam perda severa de cobertura verde no período.")
+        relevo = st.selectbox("Declividade e Relevo do Terreno:", ["Plano (0 - 3%)", "Ondulado / Acidentado (8 - 20%)", "Serra / Declividade Severa (> 20%)"])
+
+    with st.expander("📱 Feições Coletadas em Campo (App Mobile)", expanded=True):
+        problemas_selecionados = st.multiselect(
+            "Problemas e Feições Observadas no Terreno:",
+            [
+                "Presença de Voçoroca / Ravinamento Ativo", 
+                "Infestação Severa de Capim Braquiária", 
+                "Solo Arenoso com Horizonte Orgânico Degradado", 
+                "Solo Exposto e Compactado por Pisoteio", 
+                "Histórico de Queimadas Recentes", 
+                "Ausência Quase Total de Banco de Sementes Nativas"
+            ],
+            default=["Presença de Voçoroca / Ravinamento Ativo", "Infestação Severa de Capim Braquiária", "Solo Arenoso com Horizonte Orgânico Degradado"]
+        )
+
+    botao_executar = st.button("🚀 Gerar Diagnóstico e Cronograma Completo", type="primary", use_container_width=True)
+
+with col_dir:
+    st.markdown("### 📋 2. Diagnóstico Técnico & Plano Executivo")
     
-    if botao_analisar:
-        if senha_digitada != SENHA_CORRETA:
-            st.error("⛔ Senha de acesso incorreta! Por favor, insira a senha correta no menu lateral esquerdo.")
+    if botao_executar:
+        if not GEMINI_API_KEY:
+            st.error("⚠️ Chave de API não configurada nos Secrets do Streamlit.")
         else:
-            with st.spinner("O Agente de IA está cruzando os dados e calculando a intervenção..."):
-                relato = f"""
-                Propriedade: {nome_area}, {tamanho_ha} hectares.
-                Classificação ecológica: {bioma_selecionado}.
-                Satélite: NDVI de {ndvi}, Relevo {relevo}.
-                Campo: Problemas identificados: {', '.join(problemas_selecionados)}.
+            with st.spinner("🤖 O Agente de IA está processando as variáveis e calculando o plano detalhado..."):
+                relato_dados = f"""
+                Propriedade: {nome_area}, {tamanho_ha} ha.
+                Fisionomia: {bioma_selecionado}.
+                Sensoriamento: NDVI {ndvi}, Relevo {relevo}.
+                Campo: {', '.join(problemas_selecionados)}.
+                Teto Orçamentário Referência: R$ 16.000,00 por hectare (Conservação Internacional).
                 """
                 
-                try:
-                    client = genai.Client(api_key=GEMINI_API_KEY)
-                    resposta = client.models.generate_content(
-                        model='gemini-3.6-flash',
-                        contents=f"Você é o Agente Especialista do Projeto AIRA/Unimontes. Analise os dados considerando regras regionais do Norte de Minas e preencha o diagnóstico: {relato}",
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json",
-                            response_schema=DiagnosticoAmbiental,
-                        ),
-                    )
+                modelos = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-3.6-flash']
+                sucesso = False
+                resultado_obj = None
+                ultimo_erro = None
+                
+                client = genai.Client(api_key=GEMINI_API_KEY)
+                
+                for mod in modelos:
+                    try:
+                        resp = client.models.generate_content(
+                            model=mod,
+                            contents=f"Você é o Agente Especialista Sênior em Restauração Florestal do Projeto AIRA/Unimontes. Analise o caso detalhadamente, fornecendo plano de plantio com espaçamento, quantidade e custo de mudas, e cronograma detalhado de 4 semanas: {relato_dados}",
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                response_schema=DiagnosticoCompleto,
+                            ),
+                        )
+                        resultado_obj = json.loads(resp.text)
+                        sucesso = True
+                        break
+                    except Exception as err:
+                        ultimo_erro = err
+                        time.sleep(1)
+
+                if sucesso and resultado_obj:
+                    # Tabs organizadas para melhor visualização
+                    tab1, tab2, tab3, tab4 = st.tabs([
+                        "🌿 Diagnóstico Geral", 
+                        "📅 Cronograma de 4 Semanas", 
+                        "🌱 Mudas & Especificação", 
+                        "🗺️ Orçamento & GIS"
+                    ])
                     
-                    resultado = json.loads(resposta.text)
-                    
-                    grau = resultado["grau_degradacao"]
-                    if grau in ["Alto", "Critico"]:
-                        st.error(f"**Grau de Degradação:** {grau}")
-                    elif grau == "Medio":
-                        st.warning(f"**Grau de Degradação:** {grau}")
-                    else:
-                        st.success(f"**Grau de Degradação:** {grau}")
-                    
-                    if resultado.get("eh_zona_transicao", False):
-                        st.info(f"🔄 **Zona de Transição Ecológica Detectada:** Intervenção adaptada para transição ({resultado.get('bioma_ou_transicao', '')}).")
-                    
-                    st.write(f"**💡 Intervenção Recomendada:**\n\n{resultado['intervencao_sugerida']}")
-                    
-                    if "especies_recomendadas" in resultado and resultado["especies_recomendadas"]:
-                        st.write(f"**🌱 Espécies Nativas Sugeridas:** {', '.join(resultado['especies_recomendadas'])}")
-                    
-                    m1, m2 = st.columns(2)
-                    custo = resultado['custo_estimado_por_hectare']
-                    m1.metric("Custo Estimado / ha", f"R$ {custo:,.2f}")
-                    
-                    viavel = resultado['viavel_orcamento_16k']
-                    if viavel:
-                        m2.metric("Orçamento (Teto R$ 16k da Conservação Int.)", "✅ Aprovado (Dentro da Meta)")
-                    else:
-                        m2.metric("Orçamento (Teto R$ 16k da Conservação Int.)", "❌ Excede Teto")
-                    
-                    st.markdown("#### 🔍 Problemas Registrados:")
-                    for p in resultado["principais_problemas"]:
-                        st.write(f"- {p}")
-                    
-                    with st.expander("Ver JSON Estruturado (Dados para QGIS e Relatório)"):
-                        st.json(resultado)
+                    with tab1:
+                        grau = resultado_obj["grau_degradacao"]
+                        if grau in ["Alto", "Critico"]:
+                            st.error(f"**Grau de Degradação:** {grau.upper()}")
+                        elif grau == "Medio":
+                            st.warning(f"**Grau de Degradação:** {grau.upper()}")
+                        else:
+                            st.success(f"**Grau de Degradação:** {grau.upper()}")
+
+                        if resultado_obj.get("eh_zona_transicao", False):
+                            st.markdown(f"<div class='badge-transicao'>🔄 Zona de Tensão Ecológica: {resultado_obj.get('bioma_ou_transicao')}</div>", unsafe_allow_html=True)
+
+                        st.markdown("#### 📝 Parecer Técnico do Especialista:")
+                        st.write(resultado_obj["resumo_diagnostico"])
                         
-                except Exception as e:
-                    st.error(f"Erro ao consultar o agente: {e}")
+                        st.markdown("#### ⚠️ Fatores Críticos Identificados:")
+                        for fat in resultado_obj["principais_fatores_criticos"]:
+                            st.write(f"• {fat}")
+                        
+                        st.info(f"⏳ **Tempo Estimado para Regeneração:** {resultado_obj.get('tempo_estimado_recuperacao', '2 a 4 anos')}")
+
+                    with tab2:
+                        st.markdown("#### 📅 Cronograma Executivo de Campo (Primeiras 4 Semanas)")
+                        st.caption("Plano tático de intervenção imediata para garantia de pega e contenção:")
+                        
+                        for etapa in resultado_obj.get("cronograma_4_semanas", []):
+                            st.markdown(f"""
+                            <div class='card-semana'>
+                                <h4 style='margin:0; color:#1B4332;'>Semana {etapa['semana_num']}: {etapa['titulo_fase']}</h4>
+                                <p style='margin-top:6px; margin-bottom:4px;'><b>Ações Práticas:</b></p>
+                                <ul style='margin-bottom:6px;'>
+                                    {''.join([f"<li>{acao}</li>" for acao in etapa['acoes_principais']])}
+                                </ul>
+                                <p style='margin:0; color:#475569; font-size:0.88rem;'>🛠️ <b>Insumos & Ferramentas:</b> {etapa['insumos_e_ferramentas']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    with tab3:
+                        st.markdown("#### 🌱 Especificações Técnicas de Plantio e Mudas")
+                        plantio = resultado_obj["especificacao_plantio"]
+                        
+                        m_a, m_b = st.columns(2)
+                        m_a.metric("Mudas por Hectare", f"{plantio['qtd_mudas_por_hectare']:,} un.")
+                        m_b.metric("Valor Médio / Muda", f"R$ {plantio['valor_unitario_medio_muda']:.2f}")
+
+                        st.markdown(f"**📐 Espaçamento Recomendado:** {plantio['espacamento_tecnico']}")
+                        st.markdown(f"**🚜 Preparo do Solo e Coveamento:** {plantio['tecnica_preparo_coveamento']}")
+                        st.markdown(f"**🪵 Manejo de Invasoras & Erosão:** {plantio['controle_erosao_e_voçorocas']}")
+                        
+                        st.markdown("#### 🌳 Espécies Nativas Selecionadas para o Bioma:")
+                        esp_cols = st.columns(2)
+                        for idx, esp in enumerate(plantio["especies_nativas_recomendadas"]):
+                            esp_cols[idx % 2].write(f"🌿 **{esp}**")
+
+                    with tab4:
+                        st.markdown("#### 💰 Análise Financeira por Hectare")
+                        plantio = resultado_obj["especificacao_plantio"]
+                        
+                        c1, c2 = st.columns(2)
+                        c1.metric("Custo de Mudas / ha", f"R$ {plantio['custo_total_mudas_ha']:,.2f}")
+                        c2.metric("Custo Total Estimado / ha", f"R$ {resultado_obj['custo_total_estimado_por_ha']:,.2f}")
+                        
+                        orc_ok = resultado_obj["dentro_do_teto_16k"]
+                        if orc_ok:
+                            st.success(f"✅ **Viabilidade Orçamentária Aprovada:** Custo dentro do teto de R$ 16.000/ha da Conservação Internacional.")
+                        else:
+                            st.warning(f"⚠️ **Atenção ao Teto:** Custo excede R$ 16.000/ha. Recomenda-se aumentar espaçamento ou mesclar com cercamento.")
+
+                        st.markdown("---")
+                        with st.expander("📦 Exportar Objeto JSON Estruturado (QGIS / Relatório)"):
+                            st.json(resultado_obj)
+                else:
+                    st.error(f"Erro momentâneo de conexão. Clique no botão novamente para tentar. (Detalhes: {ultimo_erro})")
     else:
-        st.write("👈 Preencha os dados à esquerda e clique no botão para gerar a análise.")
+        st.info("👈 Ajuste os parâmetros de satélite e campo à esquerda e clique em **Gerar Diagnóstico** para visualizar o plano completo.")
