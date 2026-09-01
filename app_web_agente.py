@@ -13,7 +13,7 @@ import os
 import json
 import time
 from typing import List, Literal, Optional
-
+import pandas as pd
 import streamlit as st
 from pydantic import BaseModel, Field
 
@@ -78,11 +78,18 @@ class EspecificacaoPlantio(BaseModel):
     controle_erosao_e_vocorocas: str = Field(..., description="Técnicas de contenção física de erosão (ex: paliçadas de bambu)")
     especies_nativas_recomendadas: List[str] = Field(..., description="Mínimo de 4 espécies nativas recomendadas para a fitofisionomia")
 
-class SemanaCronograma(BaseModel):
-    numero_semana: int = Field(..., description="Número sequencial da semana (1, 2, 3 ou 4)")
-    titulo_fase: str = Field(..., description="Título da etapa executiva de campo")
-    acoes_praticas: List[str] = Field(..., description="Lista de ações operacionais a serem executadas")
+class EtapaMensalCronograma(BaseModel):
+    mes_referencia: str = Field(..., description="Ex: Mês 1, Mês 2, Mês 3-4, Mês 5-6, Mês 7-12, Mês 13-24")
+    titulo_fase: str = Field(..., description="Título da etapa de manejo florestal")
+    acoes_praticas: List[str] = Field(..., description="Lista de ações operacionais a serem executadas no período")
+    meta_esperada: str = Field(..., description="Marco ecológico ou resultado prático esperado ao fim desta etapa")
     ferramentas_insumos: List[str] = Field(..., description="Equipamentos, insumos e materiais necessários")
+
+class PontoEvolucao(BaseModel):
+    mes_numero: int = Field(..., description="Mês do marco (ex: 0, 3, 6, 12, 18, 24, 36)")
+    cobertura_vegetal_pct: int = Field(..., description="Percentual projetado de cobertura vegetal do solo (0 a 100)")
+    estabilizacao_erosao_pct: int = Field(..., description="Percentual projetado de estabilização de erosão e solo (0 a 100)")
+    infiltracao_hidrica_pct: int = Field(..., description="Percentual projetado de capacidade de infiltração hídrica (0 a 100)")
 
 class DiagnosticoCompleto(BaseModel):
     bioma_ou_transicao: str = Field(..., description="Fitofisionomia ou zona de transição (ex: Transição Mata Seca ⇄ Caatinga)")
@@ -92,10 +99,11 @@ class DiagnosticoCompleto(BaseModel):
     principais_fatores_criticos: List[str] = Field(..., description="Fatores limitantes do terreno")
     resumo_diagnostico: str = Field(..., description="Parecer técnico detalhado do especialista")
     especificacao_plantio: EspecificacaoPlantio
-    cronograma_4_semanas: List[SemanaCronograma]
+    cronograma_mensal: List[EtapaMensalCronograma]
+    projecao_recuperacao: List[PontoEvolucao] = Field(..., description="Projeção de recuperação ecológica em marcos temporais")
     custo_total_estimado_por_ha: float = Field(..., description="Custo total por hectare (insumos + mudas + mão de obra)")
     dentro_do_teto_16k: bool = Field(..., description="Verificação de conformidade com o teto de R$ 16.000,00/ha")
-    tempo_estimado_recuperacao: str = Field(..., description="Tempo previsto para reestabelecimento funcional da cobertura")
+    tempo_estimado_recuperacao: str = Field(..., description="Tempo previsto para reestabelecimento funcional (ex: 24 a 36 meses)")
 
 # ==========================================================================
 # UTILITÁRIOS
@@ -116,7 +124,7 @@ Internacional (CI-Brasil) / NOVE Global.
 
 Sua função é operar como Agente de Fusão Multimodal: cruzar os dados MACRO de sensoriamento 
 remoto (satélite Sentinel-2 / NDVI / relevo) com os dados MICRO coletados em campo via 
-aplicativo móvel, emitindo um diagnóstico técnico estruturado e um plano executivo de manejo.
+aplicativo móvel, emitindo um diagnóstico técnico estruturado e um plano executivo de manejo de ciclo completo.
 
 Atenção metodológica: o NDVI de satélite isolado apresenta cerca de 50% de erro em zonas 
 de transição (falso positivo de vigor em áreas tomadas por braquiária/eucalipto; e falso 
@@ -140,13 +148,17 @@ Observações complementares: {dados_campo['observacoes']}
 --- PARÂMETROS FINANCEIROS ---
 Teto de custo de referência da Conservação Internacional: R$ {TETO_CUSTO_HA:,.2f} por hectare.
 
---- DIRETRIZES DE SAÍDA ---
+--- DIRETRIZES DO PLANO MENSAL E CURVA DE RECUPERAÇÃO ---
 1. Caracterize com precisão a Fitofisionomia / Ecótono em 'bioma_ou_transicao' e justifique em 'justificativa_ecologica_bioma'.
 2. Classifique o grau de degradação e aponte os fatores críticos limitantes.
 3. Elabore parecer técnico detalhado.
 4. Especifique o plantio: espaçamento técnico, densidade de mudas/ha, custo unitário e total de mudas, preparo do solo/coveamento, contenção de voçorocas e pelo menos 4 espécies nativas adequadas.
-5. Formule o cronograma executivo das 4 primeiras semanas de intervenção.
-6. Calcule o custo global por hectare e indique conformidade com o teto de R$ 16.000,00.
+5. Formule um CRONOGRAMA MENSAL ('cronograma_mensal') cobrindo todas as etapas de médio e longo prazo do manejo (ex: Mês 1: Isolamento e Controle de Formigas/Invasoras; Mês 2-3: Abertura de Covas e Adubação; Mês 4: Plantio no Início das Chuvas; Mês 5-8: Coroamento e Irrigação de Salvamento; Mês 9-12: Replantio de Falhas; Mês 13-24+: Monitoramento de Regeneração Natural e Fechamento de Dossel).
+6. Gere a 'projecao_recuperacao' com marcos temporais (Mês 0, Mês 3, Mês 6, Mês 12, Mês 18, Mês 24 ou 36), estimando a evolução (0 a 100%) da:
+   - Cobertura Vegetal (%)
+   - Estabilização da Erosão (%)
+   - Infiltração Hídrica (%)
+7. Calcule o custo global por hectare e indique conformidade com o teto de R$ 16.000,00.
 
 Retorne estritamente o objeto JSON validado conforme o schema Pydantic.
 """
@@ -284,13 +296,24 @@ st.markdown(
         word-break: break-word;
     }
     
-    .card-semana-exec {
+    .card-etapa-mensal {
         background-color: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-left: 4px solid #334155;
+        border-left: 5px solid #0F766E;
         border-radius: 6px;
-        padding: 1rem 1.2rem;
-        margin-bottom: 0.75rem;
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 0.85rem;
+    }
+    .badge-meta {
+        background-color: #F0FDFA;
+        color: #0F766E;
+        border: 1px solid #CCFBF1;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 0.4rem;
+        display: inline-block;
     }
     </style>
     """,
@@ -298,7 +321,7 @@ st.markdown(
 )
 
 # ==========================================================================
-# TELA DE AUTENTICAÇÃO (SEM CAIXA BRANCA VAZIA)
+# TELA DE AUTENTICAÇÃO
 # ==========================================================================
 if not st.session_state.autenticado:
     st.markdown(
@@ -452,7 +475,7 @@ if btn_processar:
                 st.error(f"Falha no processamento: {ex}")
 
 # ==========================================================================
-# EXIBIÇÃO DOS RESULTADOS EM ABAS TÉCNICAS (SEM CORTE DE TEXTO)
+# EXIBIÇÃO DOS RESULTADOS EM ABAS TÉCNICAS (COM CRONOGRAMA MENSAL & GRÁFICO)
 # ==========================================================================
 if st.session_state.diagnostico:
     d: DiagnosticoCompleto = st.session_state.diagnostico
@@ -461,7 +484,7 @@ if st.session_state.diagnostico:
     aba_bioma, aba_cronograma, aba_plantio, aba_orcamento = st.tabs(
         [
             "1. Fitofisionomia & Diagnóstico",
-            "2. Cronograma Executivo (4 Semanas)",
+            "2. Cronograma Mensal & Curva de Recuperação",
             "3. Especificação de Plantio & Mudas",
             "4. Análise Orçamentária & GIS",
         ]
@@ -525,27 +548,45 @@ if st.session_state.diagnostico:
         st.info(d.resumo_diagnostico)
 
     # -------------------------------------------------------------
-    # ABA 2: CRONOGRAMA EXECUTIVO DAS 4 PRIMEIRAS SEMANAS
+    # ABA 2: CRONOGRAMA MENSAL & CURVA DE RECUPERAÇÃO (GRÁFICO)
     # -------------------------------------------------------------
     with aba_cronograma:
-        st.markdown("##### Cronograma Tático de Intervenção Inicial")
-        st.caption("Planejamento sequencial para contenção de degradação e implantação vegetal:")
+        st.markdown("##### Projeção de Recuperação Ecológica ao Longo do Tempo")
+        st.caption("Evolução estimada dos indicadores ambientais (% de cobertura vegetal, controle de erosão e infiltração hídrica):")
 
-        for sem in sorted(d.cronograma_4_semanas, key=lambda s: s.numero_semana):
+        # Construção do gráfico interativo a partir dos dados retornados pelo agente
+        if d.projecao_recuperacao:
+            dados_grafico = []
+            for pto in sorted(d.projecao_recuperacao, key=lambda x: x.mes_numero):
+                dados_grafico.append({
+                    "Mês": f"Mês {pto.mes_numero}",
+                    "Cobertura Vegetal (%)": pto.cobertura_vegetal_pct,
+                    "Estabilização da Erosão (%)": pto.estabilizacao_erosao_pct,
+                    "Infiltração Hídrica (%)": pto.infiltracao_hidrica_pct,
+                })
+            df_evolucao = pd.DataFrame(dados_grafico).set_index("Mês")
+            st.line_chart(df_evolucao, height=280)
+
+        st.divider()
+        st.markdown("##### Planejamento Executivo Mensal de Intervenção")
+        st.caption("Ações operacionais organizadas por fases mensais do ciclo de restauração:")
+
+        for etapa in d.cronograma_mensal:
             st.markdown(
                 f"""
-                <div class="card-semana-exec">
-                    <div style="font-weight: 700; font-size: 1.05rem; color: #0F172A; margin-bottom: 0.3rem;">
-                        Semana {sem.numero_semana} — {sem.titulo_fase}
+                <div class="card-etapa-mensal">
+                    <div style="font-weight: 700; font-size: 1.1rem; color: #0F172A; margin-bottom: 0.25rem;">
+                        {etapa.mes_referencia} — {etapa.titulo_fase}
                     </div>
-                    <div style="font-size: 0.9rem; color: #334155; margin-bottom: 0.4rem;">
+                    <div style="font-size: 0.92rem; color: #334155; margin-bottom: 0.4rem;">
                         <b>Operações de Campo:</b>
-                        <ul style="margin-top: 0.2rem; margin-bottom: 0.4rem; padding-left: 1.2rem;">
-                            {''.join([f'<li>{acao}</li>' for acao in sem.acoes_praticas])}
+                        <ul style="margin-top: 0.25rem; margin-bottom: 0.4rem; padding-left: 1.2rem;">
+                            {''.join([f'<li>{acao}</li>' for acao in etapa.acoes_praticas])}
                         </ul>
                     </div>
-                    <div style="font-size: 0.85rem; color: #64748B;">
-                        <b>Insumos e Equipamentos:</b> {', '.join(sem.ferramentas_insumos)}
+                    <div class="badge-meta">🎯 Meta da Etapa: {etapa.meta_esperada}</div>
+                    <div style="font-size: 0.85rem; color: #64748B; margin-top: 0.45rem;">
+                        <b>Insumos / Equipamentos:</b> {', '.join(etapa.ferramentas_insumos)}
                     </div>
                 </div>
                 """,
