@@ -57,24 +57,28 @@ GALERIA_BIOMAS = [
     {
         "titulo": "Cerrado",
         "descricao": "Árvores retorcidas, casca grossa e solo avermelhado (latossolo).",
-        "url": "https://upload.wikimedia.org/wikipedia/commons/8/8b/Cerrado_S%C3%A3o_Roque_de_Minas_MG.jpg",
+        "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Cerrado%20Brasileiro.jpg",
     },
     {
         "titulo": "Caatinga",
         "descricao": "Vegetação xerófita, mandacarus e árvores caducifólias adaptadas à seca.",
-        "url": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Caatinga_vegetation_in_Brazil.jpg",
+        "url": "https://commons.wikimedia.org/wiki/Special:FilePath/CAATINGA%20SERT%C3%83O.JPG",
     },
     {
         "titulo": "Veredas",
         "descricao": "Buritizais (Mauritia flexuosa) ao redor de nascentes e cursos d'água.",
-        "url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Buriti_Mauritia_flexuosa.jpg",
+        "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Buritis%20em%20Veredas%20(2).jpg",
     },
     {
         "titulo": "Mata Seca",
         "descricao": "Floresta estacional decidual, caducifólia no período de estiagem.",
-        "url": "https://upload.wikimedia.org/wikipedia/commons/3/3b/Floresta_estacional_decidual.jpg",
+        "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Estrada%20entra%20a%20Mata%20Seca.jpg",
     },
 ]
+# Nota: usamos o endpoint "Special:FilePath" do Wikimedia Commons, que
+# redireciona de forma ESTÁVEL para o arquivo original sem depender do hash
+# interno (/commons/x/xx/arquivo.jpg) usado pelo upload.wikimedia.org — esse
+# hash muda de arquivo para arquivo e, se digitado errado, gera link quebrado.
 
 # ==========================================================================
 # MODELOS PYDANTIC (SAÍDA ESTRUTURADA DO AGENTE)
@@ -362,11 +366,21 @@ if not st.session_state.autenticado:
     cols_galeria = st.columns(4)
     for col, bioma in zip(cols_galeria, GALERIA_BIOMAS):
         with col:
-            try:
-                st.image(bioma["url"], caption=bioma["titulo"], use_container_width=True)
-            except Exception:
-                st.info(f"{bioma['titulo']} (imagem indisponível no momento)")
-            st.caption(bioma["descricao"])
+            # st.image não valida a URL em Python (o carregamento acontece no
+            # navegador), então usamos <img onerror=...> para mostrar um
+            # aviso amigável caso o link fique indisponível no futuro.
+            st.markdown(
+                f"""
+                <img src="{bioma['url']}" style="width:100%;border-radius:10px;"
+                     alt="{bioma['titulo']}"
+                     onerror="this.onerror=null;this.replaceWith(
+                        Object.assign(document.createElement('div'),
+                        {{innerText:'⚠️ Imagem de {bioma["titulo"]} indisponível no momento',
+                          style:'padding:1rem;background:#f1f3f0;border-radius:10px;text-align:center;color:#666;font-size:0.85rem;'}}));" />
+                """,
+                unsafe_allow_html=True,
+            )
+            st.caption(f"**{bioma['titulo']}** — {bioma['descricao']}")
 
     st.markdown(
         """
