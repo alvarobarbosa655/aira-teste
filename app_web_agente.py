@@ -6,18 +6,7 @@ Agente de IA de Fusão Multimodal para Recuperação de Áreas Degradadas
 Norte de Minas Gerais - Ecótonos (Cerrado / Caatinga / Mata Seca / Veredas)
 
 Projeto: Unimontes + Conservação Internacional (CI-Brasil) + NOVE Global
-
 Stack: Streamlit + Pydantic + Google Gemini (SDK google-genai)
-
-Para executar:
-    pip install streamlit pydantic google-genai
-    streamlit run app_web_agente.py
-
-Configuração da chave de API (uma das duas formas):
-    1) Arquivo .streamlit/secrets.toml:
-           GEMINI_API_KEY = "sua-chave-aqui"
-    2) Variável de ambiente:
-           export GEMINI_API_KEY="sua-chave-aqui"
 """
 
 import os
@@ -29,11 +18,10 @@ import streamlit as st
 from pydantic import BaseModel, Field
 
 # ==========================================================================
-# CONFIGURAÇÃO DA PÁGINA (deve ser a primeira chamada Streamlit do script)
+# CONFIGURAÇÃO DA PÁGINA
 # ==========================================================================
 st.set_page_config(
-    page_title="Agente IA | Recuperação de Áreas Degradadas - Norte de MG",
-    page_icon="🌱",
+    page_title="AIRA | Diagnóstico e Manejo de Áreas Degradadas - Unimontes",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -51,210 +39,146 @@ MODELOS_GEMINI_FALLBACK = [
     "gemini-3.6-flash",
 ]
 
-# Galeria de fitofisionomias do Norte de Minas Gerais (imagens reais em alta
-# resolução, hospedadas no Wikimedia Commons, licenças livres/CC).
+# Galeria técnica de fitofisionomias do Norte de Minas Gerais
 GALERIA_BIOMAS = [
     {
-        "titulo": "Cerrado",
-        "descricao": "Árvores retorcidas, casca grossa e solo avermelhado (latossolo).",
+        "titulo": "Cerrado Típico (Stricto Sensu)",
+        "descricao": "Estrato arbóreo com troncos retorcidos, casca espessa, gramíneas e latossolos avermelhados.",
         "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Cerrado%20Brasileiro.jpg",
     },
     {
-        "titulo": "Caatinga",
-        "descricao": "Vegetação xerófita, mandacarus e árvores caducifólias adaptadas à seca.",
+        "titulo": "Caatinga Hiperxerófila",
+        "descricao": "Vegetação xerófila, cactáceas nativas (mandacaru/xique-xique) e arbustos caducifólios em solo raso.",
         "url": "https://commons.wikimedia.org/wiki/Special:FilePath/CAATINGA%20SERT%C3%83O.JPG",
     },
     {
-        "titulo": "Veredas",
-        "descricao": "Buritizais (Mauritia flexuosa) ao redor de nascentes e cursos d'água.",
+        "titulo": "Veredas e Nascentes",
+        "descricao": "Áreas hidromórficas com agrupamento de palmeiras Buriti (Mauritia flexuosa) margeando cursos hídricos.",
         "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Buritis%20em%20Veredas%20(2).jpg",
     },
     {
-        "titulo": "Mata Seca",
-        "descricao": "Floresta estacional decidual, caducifólia no período de estiagem.",
+        "titulo": "Mata Seca (Floresta Decidual)",
+        "descricao": "Floresta Estacional Decidual sobre relevo calcário, com perda foliar severa no período de estiagem.",
         "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Estrada%20entra%20a%20Mata%20Seca.jpg",
     },
 ]
-# Nota: usamos o endpoint "Special:FilePath" do Wikimedia Commons, que
-# redireciona de forma ESTÁVEL para o arquivo original sem depender do hash
-# interno (/commons/x/xx/arquivo.jpg) usado pelo upload.wikimedia.org — esse
-# hash muda de arquivo para arquivo e, se digitado errado, gera link quebrado.
 
 # ==========================================================================
-# MODELOS PYDANTIC (SAÍDA ESTRUTURADA DO AGENTE)
+# MODELOS PYDANTIC (SAÍDA ESTRUTURADA)
 # ==========================================================================
-
 
 class EspecificacaoPlantio(BaseModel):
-    espacamento_tecnico: str = Field(
-        ..., description="Ex: 3x3m - 1.111 mudas/ha"
-    )
-    qtd_mudas_por_hectare: int = Field(..., description="Quantidade de mudas por hectare")
-    valor_unitario_medio_muda: float = Field(..., description="Valor unitário médio da muda em R$")
-    custo_total_mudas_ha: float = Field(..., description="Custo total de mudas por hectare em R$")
-    tecnica_preparo_coveamento: str = Field(
-        ..., description="Dimensões da cova, calagem e adubação recomendadas"
-    )
-    controle_erosao_e_vocorocas: str = Field(
-        ..., description="Técnicas de contenção de erosão e voçorocas, ex: paliçadas de bambu"
-    )
-    especies_nativas_recomendadas: List[str] = Field(
-        ..., description="Mínimo de 4 espécies nativas reais do bioma/ecótono"
-    )
-
+    espacamento_tecnico: str = Field(..., description="Ex: 3x3 metros em quincôncio (1.111 mudas/ha)")
+    qtd_mudas_por_hectare: int = Field(..., description="Quantidade estimada de mudas por hectare")
+    valor_unitario_medio_muda: float = Field(..., description="Valor unitário médio da muda em reais (R$)")
+    custo_total_mudas_ha: float = Field(..., description="Custo total de mudas por hectare em reais (R$)")
+    tecnica_preparo_coveamento: str = Field(..., description="Dimensões da cova, calagem e adubação recomendadas")
+    controle_erosao_e_vocorocas: str = Field(..., description="Técnicas de contenção física de erosão (ex: paliçadas de bambu)")
+    especies_nativas_recomendadas: List[str] = Field(..., description="Mínimo de 4 espécies nativas recomendadas para a fitofisionomia")
 
 class SemanaCronograma(BaseModel):
-    numero_semana: int
-    titulo_fase: str
-    acoes_praticas: List[str]
-    ferramentas_insumos: List[str]
-
+    numero_semana: int = Field(..., description="Número sequencial da semana (1, 2, 3 ou 4)")
+    titulo_fase: str = Field(..., description="Título da etapa executiva de campo")
+    acoes_praticas: List[str] = Field(..., description="Lista de ações operacionais a serem executadas")
+    ferramentas_insumos: List[str] = Field(..., description="Equipamentos, insumos e materiais necessários")
 
 class DiagnosticoCompleto(BaseModel):
-    bioma_ou_transicao: str = Field(
-        ..., description="Ex: Transição Mata Seca ⇄ Caatinga"
-    )
-    eh_zona_transicao: bool
-    grau_degradacao: Literal["Baixo", "Medio", "Alto", "Critico"]
-    principais_fatores_criticos: List[str]
+    bioma_ou_transicao: str = Field(..., description="Fitofisionomia ou zona de transição (ex: Transição Mata Seca ⇄ Caatinga)")
+    eh_zona_transicao: bool = Field(..., description="Indica se a área situa-se em faixa de ecótono")
+    justificativa_ecologica_bioma: str = Field(..., description="Explicação técnica da classificação e resolução de conflito satélite x campo")
+    grau_degradacao: Literal["Baixo", "Medio", "Alto", "Critico"] = Field(..., description="Nível de degradação da área")
+    principais_fatores_criticos: List[str] = Field(..., description="Fatores limitantes do terreno")
     resumo_diagnostico: str = Field(..., description="Parecer técnico detalhado do especialista")
     especificacao_plantio: EspecificacaoPlantio
     cronograma_4_semanas: List[SemanaCronograma]
-    custo_total_estimado_por_ha: float
-    dentro_do_teto_16k: bool
-    tempo_estimado_recuperacao: str
-
+    custo_total_estimado_por_ha: float = Field(..., description="Custo total por hectare (insumos + mudas + mão de obra)")
+    dentro_do_teto_16k: bool = Field(..., description="Verificação de conformidade com o teto de R$ 16.000,00/ha")
+    tempo_estimado_recuperacao: str = Field(..., description="Tempo previsto para reestabelecimento funcional da cobertura")
 
 # ==========================================================================
 # UTILITÁRIOS
 # ==========================================================================
 
-
 def obter_api_key() -> Optional[str]:
-    """Lê a chave de API do Gemini a partir de st.secrets ou de variável de ambiente."""
-    chave = None
     try:
-        chave = st.secrets["GEMINI_API_KEY"]
+        return st.secrets["GEMINI_API_KEY"]
     except Exception:
-        chave = os.environ.get("GEMINI_API_KEY")
-    return chave
-
+        return os.environ.get("GEMINI_API_KEY")
 
 def montar_prompt(dados_campo: dict) -> str:
-    """Monta o prompt de fusão multimodal com os dados macro (satélite) e micro (campo)."""
     prompt = f"""
-Você é um Engenheiro Florestal e Agrônomo Sênior, especialista em recuperação de
-áreas degradadas em ecótonos do Norte de Minas Gerais (transições entre Cerrado,
-Caatinga, Mata Seca e Veredas), atuando no projeto Unimontes / Conservação
+Você é um Engenheiro Florestal e Fitossociólogo Sênior, especialista em recuperação de
+áreas degradadas em zonas de transição ecológica (ecótonos) do Norte de Minas Gerais 
+(Mata Seca, Caatinga, Cerrado e Veredas), atuando no projeto Unimontes / Conservação
 Internacional (CI-Brasil) / NOVE Global.
 
-Sua tarefa é atuar como um Agente de Fusão Multimodal, cruzando dados MACRO de
-sensoriamento remoto (satélite Sentinel-2 / NDVI / relevo) com dados MICRO
-coletados em campo via aplicativo mobile, para emitir um diagnóstico técnico
-estruturado e um plano de recuperação executável.
+Sua função é operar como Agente de Fusão Multimodal: cruzar os dados MACRO de sensoriamento 
+remoto (satélite Sentinel-2 / NDVI / relevo) com os dados MICRO coletados em campo via 
+aplicativo móvel, emitindo um diagnóstico técnico estruturado e um plano executivo de manejo.
 
-Lembre-se: o NDVI de satélite sozinho tem ~50% de erro em zonas de transição
-(falso positivo de vegetação verde que na verdade é eucalipto/braquiária;
-falsa degradação na Mata Seca durante a estiagem, quando a floresta perde as
-folhas naturalmente). Use o julgamento agronômico de campo para corrigir o
-viés do dado de satélite.
+Atenção metodológica: o NDVI de satélite isolado apresenta cerca de 50% de erro em zonas 
+de transição (falso positivo de vigor em áreas tomadas por braquiária/eucalipto; e falso 
+negativo de degradação na Mata Seca durante a estiagem devido à caducifólia). Utilize a 
+observação de campo para calibrar com exatidão o diagnóstico.
 
---- DADOS MACRO (SATÉLITE) ---
+--- DADOS DE SENSORIAMENTO REMOTO (SATÉLITE) ---
 NDVI médio da área: {dados_campo['ndvi']}
 Relevo / Declividade: {dados_campo['relevo']}
-Período da coleta: {dados_campo['periodo_coleta']}
+Período da imagem: {dados_campo['periodo_coleta']}
 
---- DADOS MICRO (CAMPO / APP MOBILE) ---
-Município/Região: {dados_campo['regiao']}
+--- DADOS DE CAMPO (APLICATIVO MOBILE) ---
+Município / Talhão: {dados_campo['regiao']}
 Tipo de solo observado: {dados_campo['tipo_solo']}
-Presença de voçorocas/erosão: {dados_campo['erosao']}
-Presença de braquiária/invasoras: {dados_campo['invasoras']}
-Proximidade de curso d'água / nascente: {dados_campo['agua']}
-Uso anterior da terra: {dados_campo['uso_anterior']}
-Observações adicionais do técnico de campo: {dados_campo['observacoes']}
+Erosão / Feições físicas: {dados_campo['erosao']}
+Cobertura de invasoras (Braquiária): {dados_campo['invasoras']}
+Proximidade hídrica / Veredas: {dados_campo['agua']}
+Histórico de uso da terra: {dados_campo['uso_anterior']}
+Observações complementares: {dados_campo['observacoes']}
 
---- RESTRIÇÃO ORÇAMENTÁRIA ---
-Teto de custo de referência da Conservação Internacional: R$ {TETO_CUSTO_HA:,.2f} por hectare recuperado.
+--- PARÂMETROS FINANCEIROS ---
+Teto de custo de referência da Conservação Internacional: R$ {TETO_CUSTO_HA:,.2f} por hectare.
 
---- INSTRUÇÕES ---
-1. Determine o bioma real ou a transição ecológica (ecótono), corrigindo o
-   viés do NDVI com os dados de campo.
-2. Classifique o grau de degradação.
-3. Liste os principais fatores críticos do terreno.
-4. Escreva um parecer técnico detalhado (resumo_diagnostico).
-5. Especifique tecnicamente o plantio: espaçamento, quantidade de mudas/ha,
-   valor unitário médio de muda (mercado de mudas nativas em MG),
-   custo total de mudas por hectare, técnica de coveamento (dimensões,
-   calagem, adubação), controle de erosão/voçorocas, e no mínimo 4 espécies
-   nativas REAIS do bioma/ecótono identificado.
-6. Monte um cronograma prático das 4 primeiras semanas de campo.
-7. Calcule o custo total estimado por hectare (mudas + insumos + mão de obra +
-   controle de erosão) e indique se está dentro do teto de R$ 16.000,00/ha.
-8. Estime o tempo de recuperação (ex: "18 a 24 meses para cobertura funcional").
+--- DIRETRIZES DE SAÍDA ---
+1. Caracterize com precisão a Fitofisionomia / Ecótono em 'bioma_ou_transicao' e justifique em 'justificativa_ecologica_bioma'.
+2. Classifique o grau de degradação e aponte os fatores críticos limitantes.
+3. Elabore parecer técnico detalhado.
+4. Especifique o plantio: espaçamento técnico, densidade de mudas/ha, custo unitário e total de mudas, preparo do solo/coveamento, contenção de voçorocas e pelo menos 4 espécies nativas adequadas.
+5. Formule o cronograma executivo das 4 primeiras semanas de intervenção.
+6. Calcule o custo global por hectare e indique conformidade com o teto de R$ 16.000,00.
 
-Responda ESTRITAMENTE no formato JSON estruturado solicitado, em português do Brasil.
+Retorne estritamente o objeto JSON validado conforme o schema Pydantic.
 """
     return prompt.strip()
 
-
 def chamar_agente_gemini(api_key: str, dados_campo: dict) -> DiagnosticoCompleto:
-    """
-    Chama a API do Gemini com fallback automático entre modelos e retry em
-    caso de sobrecarga (503), retornando um objeto DiagnosticoCompleto validado.
-    """
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=api_key)
     prompt = montar_prompt(dados_campo)
-
     ultimo_erro = None
-    max_tentativas_por_modelo = 2
 
     for modelo in MODELOS_GEMINI_FALLBACK:
-        for tentativa in range(1, max_tentativas_por_modelo + 1):
-            try:
-                st.toast(f"Consultando modelo {modelo} (tentativa {tentativa})...", icon="🤖")
-                response = client.models.generate_content(
-                    model=modelo,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=DiagnosticoCompleto,
-                        temperature=0.4,
-                    ),
-                )
+        try:
+            response = client.models.generate_content(
+                model=modelo,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=DiagnosticoCompleto,
+                    temperature=0.3,
+                ),
+            )
+            dados_json = json.loads(response.text)
+            return DiagnosticoCompleto.model_validate(dados_json)
+        except Exception as e:
+            ultimo_erro = e
+            time.sleep(1)
 
-                texto_bruto = response.text
-                dados_json = json.loads(texto_bruto)
-                diagnostico = DiagnosticoCompleto.model_validate(dados_json)
-                return diagnostico
-
-            except Exception as e:
-                ultimo_erro = e
-                mensagem_erro = str(e).lower()
-                sobrecarregado = (
-                    "503" in mensagem_erro
-                    or "overloaded" in mensagem_erro
-                    or "unavailable" in mensagem_erro
-                    or "resource_exhausted" in mensagem_erro
-                    or "429" in mensagem_erro
-                )
-                if sobrecarregado and tentativa < max_tentativas_por_modelo:
-                    time.sleep(2 * tentativa)
-                    continue
-                else:
-                    # Passa para o próximo modelo da lista de fallback
-                    break
-
-    raise RuntimeError(
-        f"Todos os modelos Gemini falharam após fallback e retry. "
-        f"Último erro registrado: {ultimo_erro}"
-    )
-
+    raise RuntimeError(f"Falha na comunicação com o agente: {ultimo_erro}")
 
 # ==========================================================================
-# ESTADO DE SESSÃO
+# GERENCIAMENTO DE SESSÃO
 # ==========================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -263,64 +187,86 @@ if "diagnostico" not in st.session_state:
 if "erro_login" not in st.session_state:
     st.session_state.erro_login = False
 
-
-def tentar_login():
-    senha_digitada = st.session_state.get("campo_senha", "")
-    if senha_digitada == SENHA_ACESSO:
+def autenticar():
+    if st.session_state.get("campo_senha", "") == SENHA_ACESSO:
         st.session_state.autenticado = True
         st.session_state.erro_login = False
     else:
         st.session_state.erro_login = True
 
-
-def logout():
+def encerrar_sessao():
     st.session_state.autenticado = False
     st.session_state.diagnostico = None
 
-
 # ==========================================================================
-# ESTILO (CSS) GLOBAL
+# ESTILO VISUAL CORPORATIVO / ACADÊMICO
 # ==========================================================================
 st.markdown(
     """
     <style>
-    .main {
-        background-color: #f7f9f6;
+    .main { background-color: #F8FAFC; }
+    
+    .header-institucional {
+        border-bottom: 2px solid #E2E8F0;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
-    .bloco-titulo {
-        text-align: center;
-        padding-top: 1.5rem;
-        padding-bottom: 0.5rem;
-    }
-    .bloco-titulo h1 {
-        color: #1b5e20;
-        font-weight: 800;
+    .titulo-principal {
+        color: #0F172A;
+        font-size: 1.8rem;
+        font-weight: 700;
         margin-bottom: 0.2rem;
     }
-    .bloco-titulo p {
-        color: #4e5d52;
-        font-size: 1.05rem;
+    .subtitulo-institucional {
+        color: #475569;
+        font-size: 0.95rem;
+        font-weight: 500;
     }
-    .cartao-login {
-        max-width: 420px;
-        margin: 0 auto;
-        padding: 2rem 2rem 1.5rem 2rem;
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-        border: 1px solid #e3e8e0;
+    
+    .card-login-box {
+        background: #FFFFFF;
+        border-radius: 8px;
+        padding: 2rem;
+        border: 1px solid #CBD5E1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
-    .rodape-parceiros {
-        text-align: center;
-        color: #7a877d;
-        font-size: 0.85rem;
-        padding-top: 2rem;
+    
+    .card-bioma-destaque {
+        background-color: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        border-left: 6px solid #1E40AF;
+        border-radius: 6px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
     }
-    .card-metrica {
-        background: white;
-        border-radius: 12px;
-        padding: 1rem;
-        border: 1px solid #e3e8e0;
+    .tag-ecotono {
+        background-color: #EFF6FF;
+        color: #1E40AF;
+        border: 1px solid #BFDBFE;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 4px;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+    }
+    .nome-fitofisionomia {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #0F172A;
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+    
+    .card-semana-exec {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-left: 4px solid #334155;
+        border-radius: 6px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 0.75rem;
     }
     </style>
     """,
@@ -328,160 +274,140 @@ st.markdown(
 )
 
 # ==========================================================================
-# TELA DE LOGIN
+# TELA DE AUTENTICAÇÃO
 # ==========================================================================
 if not st.session_state.autenticado:
     st.markdown(
         """
-        <div class="bloco-titulo">
-            <h1>🌱 Agente IA de Recuperação de Áreas Degradadas</h1>
-            <p>Unimontes · Conservação Internacional (CI-Brasil) · NOVE Global — Norte de Minas Gerais</p>
+        <div class="header-institucional" style="text-align: center;">
+            <div class="titulo-principal">Sistema AIRA • Recuperação de Áreas Degradadas</div>
+            <div class="subtitulo-institucional">Universidade Estadual de Montes Claros (Unimontes) | Conservação Internacional | NOVE Global</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.write("")
-    col_esq, col_centro, col_dir = st.columns([1, 1.3, 1])
-    with col_centro:
-        st.markdown('<div class="cartao-login">', unsafe_allow_html=True)
-        st.markdown("#### 🔒 Acesso Restrito ao Painel Técnico")
+    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+    with col_l2:
+        st.markdown('<div class="card-login-box">', unsafe_allow_html=True)
+        st.markdown("#### Autenticação Técnica")
+        st.caption("Acesso restrito a pesquisadores e corpo técnico credenciado.")
+        
         st.text_input(
-            "Senha de acesso",
+            "Código de Acesso do Projeto",
             type="password",
             key="campo_senha",
-            placeholder="Digite a senha do projeto",
+            placeholder="Insira a credencial técnica",
         )
-        st.button("Entrar", type="primary", use_container_width=True, on_click=tentar_login)
+        st.button("Acessar Painel", type="primary", use_container_width=True, on_click=autenticar)
+        
         if st.session_state.erro_login:
-            st.error("Senha incorreta. Verifique com a coordenação do projeto Unimontes.")
+            st.error("Credencial inválida. Consulte a coordenação do projeto.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.write("")
-    st.markdown("### 🌎 Fitofisionomias do Norte de Minas Gerais")
-    st.caption(
-        "Zona de ecótonos complexos — transições entre Cerrado, Caatinga, Mata Seca e Veredas."
-    )
+    st.markdown("##### Fitofisionomias de Referência no Norte de Minas Gerais")
+    st.caption("Ecótonos e zonas de transição ecológica sob monitoramento pelo sistema:")
 
-    cols_galeria = st.columns(4)
-    for col, bioma in zip(cols_galeria, GALERIA_BIOMAS):
+    cols_gal = st.columns(4)
+    for col, item in zip(cols_gal, GALERIA_BIOMAS):
         with col:
-            # st.image não valida a URL em Python (o carregamento acontece no
-            # navegador), então usamos <img onerror=...> para mostrar um
-            # aviso amigável caso o link fique indisponível no futuro.
             st.markdown(
                 f"""
-                <img src="{bioma['url']}" style="width:100%;border-radius:10px;"
-                     alt="{bioma['titulo']}"
-                     onerror="this.onerror=null;this.replaceWith(
-                        Object.assign(document.createElement('div'),
-                        {{innerText:'⚠️ Imagem de {bioma["titulo"]} indisponível no momento',
-                          style:'padding:1rem;background:#f1f3f0;border-radius:10px;text-align:center;color:#666;font-size:0.85rem;'}}));" />
+                <img src="{item['url']}" style="width:100%; height:160px; object-fit:cover; border-radius:6px; border:1px solid #CBD5E1;"
+                     alt="{item['titulo']}"
+                     onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{{innerText:'Registro visual de {item['titulo']}',style:'padding:2rem;background:#F1F5F9;border-radius:6px;text-align:center;color:#64748B;font-size:0.85rem;'}}));" />
                 """,
                 unsafe_allow_html=True,
             )
-            st.caption(f"**{bioma['titulo']}** — {bioma['descricao']}")
-
-    st.markdown(
-        """
-        <div class="rodape-parceiros">
-        Projeto de restauração ecológica em parceria com Universidade Estadual de Montes Claros (Unimontes),
-        Conservação Internacional (CI-Brasil) e financiamento NOVE Global.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            st.markdown(f"**{item['titulo']}**")
+            st.caption(item['descricao'])
 
     st.stop()
 
 # ==========================================================================
-# PAINEL PRINCIPAL (PÓS-LOGIN)
+# PAINEL DE CONTROLE (USUÁRIO AUTENTICADO)
 # ==========================================================================
 
 with st.sidebar:
-    st.markdown("## 🌱 Painel do Agente")
-    st.success("Sessão autenticada")
-    st.button("🚪 Sair", on_click=logout, use_container_width=True)
+    st.markdown("### Painel Operacional")
+    st.caption("Credencial validada | Nível Técnico")
+    st.button("Encerrar Sessão", on_click=encerrar_sessao, use_container_width=True)
     st.divider()
-    st.markdown("**Projeto:** Recuperação de Áreas Degradadas")
-    st.markdown("**Região:** Norte de Minas Gerais")
-    st.markdown("**Parceiros:** Unimontes · CI-Brasil · NOVE Global")
+    st.markdown("**Projeto:** AIRA - Restauração Ecológica")
+    st.markdown("**Instituição:** Unimontes")
+    st.markdown("**Parceria:** CI-Brasil / NOVE Global")
+    st.markdown(f"**Teto de Referência:** R$ {TETO_CUSTO_HA:,.2f} / ha")
     st.divider()
-    st.markdown(f"**Teto de custo de referência:**  \nR$ {TETO_CUSTO_HA:,.2f} / hectare")
 
-    api_key_disponivel = obter_api_key()
-    if api_key_disponivel:
-        st.caption("✅ Chave de API do Gemini configurada.")
+    chave = obter_api_key()
+    if chave:
+        st.caption("Status da Conexão: Operacional (API Ativa)")
     else:
-        st.caption("⚠️ Chave de API do Gemini não configurada (secrets ou variável de ambiente).")
+        st.caption("Status da Conexão: Chave de API não identificada")
 
 st.markdown(
     """
-    <div class="bloco-titulo">
-        <h1>🌿 Diagnóstico de Fusão Multimodal</h1>
-        <p>Cruzamento de dados de satélite (macro) com dados de campo (micro) para decisão agronômica estruturada</p>
+    <div class="header-institucional">
+        <div class="titulo-principal">Diagnóstico de Fusão Multimodal e Plano de Manejo</div>
+        <div class="subtitulo-institucional">Integração de sensoriamento remoto orbital e levantamento expedito de campo</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-with st.form("form_dados_campo"):
-    st.markdown("#### 📡 Dados Macro — Satélite (Sentinel-2 / NDVI)")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        ndvi = st.number_input(
-            "NDVI médio da área (0.0 a 1.0)", min_value=0.0, max_value=1.0, value=0.35, step=0.01
-        )
-    with col2:
+with st.form("form_parametros_campo"):
+    st.markdown("##### 1. Dados de Sensoriamento Remoto (Sentinel-2 / MDE)")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        ndvi = st.number_input("NDVI Médio da Gleba (0.00 a 1.00)", min_value=0.0, max_value=1.0, value=0.42, step=0.01)
+    with c2:
         relevo = st.selectbox(
-            "Relevo / Declividade",
-            ["Plano (0-3%)", "Suave ondulado (3-8%)", "Ondulado (8-20%)", "Forte ondulado (20-45%)", "Montanhoso (>45%)"],
+            "Declividade e Relevo",
+            ["Plano (0 a 3%)", "Suave Ondulado (3 a 8%)", "Ondulado / Acidentado (8 a 20%)", "Forte Ondulado / Serra (> 20%)"]
         )
-    with col3:
+    with c3:
         periodo_coleta = st.selectbox(
-            "Período da coleta de imagem",
-            ["Período chuvoso (out-mar)", "Período de estiagem (abr-set)"],
+            "Sazonalidade da Imagem",
+            ["Período Seco / Estiagem (Abril a Setembro)", "Período Chuvoso (Outubro a Março)"]
         )
 
-    st.markdown("#### 🧑‍🌾 Dados Micro — Coleta em Campo (App Mobile)")
-    col4, col5 = st.columns(2)
-    with col4:
-        regiao = st.text_input("Município / Região", value="Montes Claros - MG")
+    st.markdown("##### 2. Parâmetros de Campo (Inspeção / App Mobile)")
+    c4, c5 = st.columns(2)
+    with c4:
+        regiao = st.text_input("Identificação da Propriedade / Município", value="Talhão Piloto 40ha - Norte de Minas")
         tipo_solo = st.selectbox(
-            "Tipo de solo observado",
-            ["Latossolo vermelho", "Argissolo", "Neossolo litólico", "Cambissolo", "Solo raso/pedregoso", "Solo hidromórfico (vereda)"],
+            "Caracterização Pedológica Visual",
+            ["Latossolo Vermelho/Amarelo", "Argissolo com horizonte B textural", "Neossolo Litólico / Pedregoso", "Solo Arenoso com baixa matéria orgânica", "Gleissolo / Hidromórfico (Vereda)"]
         )
         erosao = st.selectbox(
-            "Presença de voçorocas / erosão",
-            ["Ausente", "Incipiente (sulcos)", "Moderada (ravinas)", "Severa (voçorocas ativas)"],
+            "Processos Erosivos Ativos",
+            ["Sem erosão evidente", "Laminar / Sulcos iniciais", "Erosão em ravinas", "Voçorocamento severo em expansão"]
         )
-    with col5:
+    with c5:
         invasoras = st.selectbox(
-            "Presença de braquiária / invasoras",
-            ["Ausente", "Baixa cobertura (<25%)", "Média cobertura (25-60%)", "Alta cobertura (>60%)"],
+            "Infestação de Espécies Invasoras (Braquiária)",
+            ["Ausente", "Esparsa (< 25% da área)", "Moderada (25 a 60% da área)", "Dominante (> 60% da área, suprimindo regeneração)"]
         )
         agua = st.selectbox(
-            "Proximidade de curso d'água / nascente",
-            ["Sem corpo hídrico próximo", "Próximo a curso d'água intermitente", "Próximo a curso d'água perene", "Área de vereda / nascente"],
+            "Recursos Hídricos e Proximidade",
+            ["Sem corpo d'água adjacente", "Próximo a drenagem intermitente", "Próximo a curso d'água perene", "Área de cabeceira / Vereda de Buriti"]
         )
-        uso_anterior = st.text_input("Uso anterior da terra", value="Pastagem degradada")
+        uso_anterior = st.text_input("Histórico de Uso da Terra", value="Pastagem extensiva com compactação")
 
     observacoes = st.text_area(
-        "Observações adicionais do técnico de campo",
-        placeholder="Ex: presença de cupinzeiros, afloramento rochoso, indícios de fogo recente, etc.",
+        "Anotações Complementares do Técnico",
+        placeholder="Informe detalhes sobre banco de sementes, queimadas recentes, afloramentos rochosos, etc."
     )
 
-    enviar = st.form_submit_button("🚀 Gerar Diagnóstico com o Agente IA", type="primary", use_container_width=True)
+    btn_processar = st.form_submit_button("Processar Diagnóstico Multimodal", type="primary", use_container_width=True)
 
-if enviar:
-    api_key = obter_api_key()
-    if not api_key:
-        st.error(
-            "Chave de API do Gemini não encontrada. Configure `st.secrets['GEMINI_API_KEY']` "
-            "ou a variável de ambiente `GEMINI_API_KEY` antes de continuar."
-        )
+if btn_processar:
+    chave_api = obter_api_key()
+    if not chave_api:
+        st.error("Chave de API do Gemini não configurada nos Secrets ou no ambiente.")
     else:
-        dados_campo = {
+        dados_input = {
             "ndvi": ndvi,
             "relevo": relevo,
             "periodo_coleta": periodo_coleta,
@@ -491,131 +417,154 @@ if enviar:
             "invasoras": invasoras,
             "agua": agua,
             "uso_anterior": uso_anterior,
-            "observacoes": observacoes if observacoes else "Nenhuma observação adicional.",
+            "observacoes": observacoes if observacoes else "Sem observações adicionais.",
         }
-        with st.spinner("O agente está cruzando os dados de satélite com os dados de campo..."):
+        with st.spinner("O agente está executando a fusão dos dados e calculando o plano técnico..."):
             try:
-                diagnostico = chamar_agente_gemini(api_key, dados_campo)
-                st.session_state.diagnostico = diagnostico
-                st.success("Diagnóstico gerado com sucesso.")
-            except Exception as e:
+                diag_resultado = chamar_agente_gemini(chave_api, dados_input)
+                st.session_state.diagnostico = diag_resultado
+                st.success("Análise fitossociológica e plano de intervenção concluídos.")
+            except Exception as ex:
                 st.session_state.diagnostico = None
-                st.error(f"Não foi possível gerar o diagnóstico. Detalhes: {e}")
+                st.error(f"Falha no processamento: {ex}")
 
 # ==========================================================================
-# EXIBIÇÃO DO DIAGNÓSTICO EM ABAS
+# EXIBIÇÃO DOS RESULTADOS EM ABAS TÉCNICAS
 # ==========================================================================
 if st.session_state.diagnostico:
-    diag: DiagnosticoCompleto = st.session_state.diagnostico
-
+    d: DiagnosticoCompleto = st.session_state.diagnostico
     st.divider()
 
-    aba1, aba2, aba3, aba4 = st.tabs(
+    aba_bioma, aba_cronograma, aba_plantio, aba_orcamento = st.tabs(
         [
-            "🌿 Diagnóstico Geral",
-            "📅 Cronograma de 4 Semanas",
-            "🌱 Mudas & Plantio",
-            "💰 Análise Orçamentária",
+            "1. Fitofisionomia & Diagnóstico",
+            "2. Cronograma Executivo (4 Semanas)",
+            "3. Especificação de Plantio & Mudas",
+            "4. Análise Orçamentária & GIS",
         ]
     )
 
-    # -------- ABA 1: DIAGNÓSTICO GERAL --------
-    with aba1:
-        colA, colB, colC = st.columns(3)
-        with colA:
-            st.markdown('<div class="card-metrica">', unsafe_allow_html=True)
-            st.metric("Bioma / Transição", diag.bioma_ou_transicao)
-            st.markdown("</div>", unsafe_allow_html=True)
-        with colB:
-            st.markdown('<div class="card-metrica">', unsafe_allow_html=True)
-            st.metric("Zona de Transição (Ecótono)?", "Sim" if diag.eh_zona_transicao else "Não")
-            st.markdown("</div>", unsafe_allow_html=True)
-        with colC:
-            cor_grau = {
-                "Baixo": "🟢", "Medio": "🟡", "Alto": "🟠", "Critico": "🔴",
-            }.get(diag.grau_degradacao, "⚪")
-            st.markdown('<div class="card-metrica">', unsafe_allow_html=True)
-            st.metric("Grau de Degradação", f"{cor_grau} {diag.grau_degradacao}")
-            st.markdown("</div>", unsafe_allow_html=True)
+    # -------------------------------------------------------------
+    # ABA 1: CLASSIFICAÇÃO DA FITOFISIONOMIA E DIAGNÓSTICO
+    # -------------------------------------------------------------
+    with aba_bioma:
+        # Card amplo e responsivo para o nome do Bioma sem truncamento de texto
+        st.markdown(
+            f"""
+            <div class="card-bioma-destaque">
+                <span class="tag-ecotono">{"ZONA DE TRANSIÇÃO ECOLÓGICA (ECÓTONO)" if d.eh_zona_transicao else "FITOFISIONOMIA PRINCIPAL"}</span>
+                <div class="nome-fitofisionomia">{d.bioma_ou_transicao}</div>
+                <div style="color: #475569; font-size: 0.95rem; line-height: 1.5;">
+                    <b>Interpretação e Calibração de Campo:</b> {d.justificativa_ecologica_bioma}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        st.write("")
-        st.markdown("##### ⚠️ Principais Fatores Críticos")
-        for fator in diag.principais_fatores_criticos:
-            st.markdown(f"- {fator}")
+        col_stat1, col_stat2, col_stat3 = st.columns(3)
+        with col_stat1:
+            st.metric("Grau de Degradação", d.grau_degradacao)
+        with col_stat2:
+            st.metric("Tempo Previsto de Recuperação", d.tempo_estimado_recuperacao)
+        with col_stat3:
+            st.metric("Enquadramento Orçamentário", "Conforme" if d.dentro_do_teto_16k else "Excede Teto")
 
-        st.write("")
-        st.markdown("##### 📝 Parecer Técnico Detalhado")
-        st.info(diag.resumo_diagnostico)
+        st.markdown("##### Fatores Críticos e Limitantes do Terreno")
+        for fator in d.principais_fatores_criticos:
+            st.markdown(f"• {fator}")
 
-        st.write("")
-        st.markdown(f"**⏳ Tempo estimado de recuperação:** {diag.tempo_estimado_recuperacao}")
+        st.markdown("##### Parecer Técnico Estruturado")
+        st.info(d.resumo_diagnostico)
 
-    # -------- ABA 2: CRONOGRAMA DE 4 SEMANAS --------
-    with aba2:
-        st.markdown("##### 📅 Cronograma Executivo — Primeiras 4 Semanas de Campo")
-        for semana in sorted(diag.cronograma_4_semanas, key=lambda s: s.numero_semana):
-            with st.expander(f"Semana {semana.numero_semana} — {semana.titulo_fase}", expanded=(semana.numero_semana == 1)):
-                st.markdown("**Ações práticas:**")
-                for acao in semana.acoes_praticas:
-                    st.markdown(f"- {acao}")
-                st.markdown("**Ferramentas / Insumos:**")
-                for item in semana.ferramentas_insumos:
-                    st.markdown(f"- {item}")
+    # -------------------------------------------------------------
+    # ABA 2: CRONOGRAMA EXECUTIVO DAS 4 PRIMEIRAS SEMANAS
+    # -------------------------------------------------------------
+    with aba_cronograma:
+        st.markdown("##### Cronograma Tático de Intervenção Inicial")
+        st.caption("Planejamento sequencial para contenção de degradação e implantação vegetal:")
 
-    # -------- ABA 3: MUDAS & ESPECIFICAÇÃO DE PLANTIO --------
-    with aba3:
-        esp = diag.especificacao_plantio
-        st.markdown("##### 🌱 Especificação Técnica de Plantio")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Espaçamento técnico", esp.espacamento_tecnico)
-        col2.metric("Mudas por hectare", f"{esp.qtd_mudas_por_hectare:,}")
-        col3.metric("Valor unitário médio", f"R$ {esp.valor_unitario_medio_muda:,.2f}")
-
-        st.write("")
-        st.markdown(f"**💵 Custo total de mudas por hectare:** R$ {esp.custo_total_mudas_ha:,.2f}")
-
-        st.write("")
-        st.markdown("##### 🕳️ Técnica de Preparo e Coveamento")
-        st.write(esp.tecnica_preparo_coveamento)
-
-        st.markdown("##### 🌊 Controle de Erosão e Voçorocas")
-        st.write(esp.controle_erosao_e_vocorocas)
-
-        st.markdown("##### 🌳 Espécies Nativas Recomendadas")
-        for especie in esp.especies_nativas_recomendadas:
-            st.markdown(f"- {especie}")
-
-    # -------- ABA 4: ANÁLISE ORÇAMENTÁRIA --------
-    with aba4:
-        st.markdown("##### 💰 Análise Orçamentária")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Custo total estimado por hectare", f"R$ {diag.custo_total_estimado_por_ha:,.2f}")
-        with col2:
-            diferenca = TETO_CUSTO_HA - diag.custo_total_estimado_por_ha
-            st.metric(
-                "Teto CI-Brasil (R$ 16.000,00/ha)",
-                "✅ Dentro do teto" if diag.dentro_do_teto_16k else "❌ Acima do teto",
-                delta=f"R$ {diferenca:,.2f}",
+        for sem in sorted(d.cronograma_4_semanas, key=lambda s: s.numero_semana):
+            st.markdown(
+                f"""
+                <div class="card-semana-exec">
+                    <div style="font-weight: 700; font-size: 1.05rem; color: #0F172A; margin-bottom: 0.3rem;">
+                        Semana {sem.numero_semana} — {sem.titulo_fase}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #334155; margin-bottom: 0.4rem;">
+                        <b>Operações de Campo:</b>
+                        <ul style="margin-top: 0.2rem; margin-bottom: 0.4rem; padding-left: 1.2rem;">
+                            {''.join([f'<li>{acao}</li>' for acao in sem.acoes_praticas])}
+                        </ul>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #64748B;">
+                        <b>Insumos e Equipamentos:</b> {', '.join(sem.ferramentas_insumos)}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
-        if diag.dentro_do_teto_16k:
-            st.success("O custo estimado está dentro do teto de referência da Conservação Internacional.")
-        else:
-            st.warning("O custo estimado ULTRAPASSA o teto de referência de R$ 16.000,00/ha. Revisar plano de plantio.")
+    # -------------------------------------------------------------
+    # ABA 3: ESPECIFICAÇÃO TÉCNICA DE PLANTIO E MUDAS
+    # -------------------------------------------------------------
+    with aba_plantio:
+        p = d.especificacao_plantio
+        st.markdown("##### Parâmetros Silviculturais e Densidade de Mudas")
 
-        st.write("")
-        st.markdown("##### 🗺️ JSON Estruturado (compatível com QGIS)")
-        json_saida = diag.model_dump()
-        st.json(json_saida)
+        col_p1, col_p2, col_p3 = st.columns(3)
+        col_p1.metric("Espaçamento Técnico", p.espacamento_tecnico)
+        col_p2.metric("Densidade Recomendada", f"{p.qtd_mudas_por_hectare:,} mudas/ha")
+        col_p3.metric("Valor Médio / Muda", f"R$ {p.valor_unitario_medio_muda:,.2f}")
+
+        st.markdown(f"**Custo Total de Aquisição de Mudas:** R$ {p.custo_total_mudas_ha:,.2f} / hectare")
+        st.divider()
+
+        st.markdown("##### Método de Preparo de Solo e Coveamento")
+        st.write(p.tecnica_preparo_coveamento)
+
+        st.markdown("##### Controle de Erosão e Estabilização Física")
+        st.write(p.controle_erosao_e_vocorocas)
+
+        st.markdown("##### Espécies Nativas Indicadas para o Bioma / Ecótono")
+        col_esp1, col_esp2 = st.columns(2)
+        for idx, esp in enumerate(p.especies_nativas_recomendadas):
+            if idx % 2 == 0:
+                col_esp1.markdown(f"• **{esp}**")
+            else:
+                col_esp2.markdown(f"• **{esp}**")
+
+    # -------------------------------------------------------------
+    # ABA 4: ANÁLISE ORÇAMENTÁRIA E DADOS GIS
+    # -------------------------------------------------------------
+    with aba_orcamento:
+        st.markdown("##### Conformidade com o Teto Orçamentário")
+
+        col_o1, col_o2 = st.columns(2)
+        with col_o1:
+            st.metric("Custo Global Estimado", f"R$ {d.custo_total_estimado_por_ha:,.2f} / ha")
+        with col_o2:
+            saldo = TETO_CUSTO_HA - d.custo_total_estimado_por_ha
+            st.metric(
+                "Teto Conservação Internacional (R$ 16.000,00)",
+                "Conforme" if d.dentro_do_teto_16k else "Não Conforme",
+                delta=f"Margem: R$ {saldo:,.2f}",
+            )
+
+        if d.dentro_do_teto_16k:
+            st.success("O custo total projetado atende rigorosamente aos parâmetros de referência do projeto.")
+        else:
+            st.warning("O custo projetado ultrapassa o teto de R$ 16.000,00/ha. Recomenda-se ajustar o espaçamento ou combinar com indução natural.")
+
+        st.divider()
+        st.markdown("##### Estrutura de Dados para Integração GIS (QGIS / ArcGIS)")
+        dados_exportacao = d.model_dump()
+        st.json(dados_exportacao)
 
         st.download_button(
-            label="⬇️ Baixar JSON do Diagnóstico",
-            data=json.dumps(json_saida, ensure_ascii=False, indent=2),
-            file_name="diagnostico_area_degradada.json",
+            label="Exportar Arquivo JSON do Diagnóstico",
+            data=json.dumps(dados_exportacao, ensure_ascii=False, indent=2),
+            file_name="diagnostico_tecnico_unimontes.json",
             mime="application/json",
             use_container_width=True,
         )
-else:
-    st.info("Preencha os dados macro (satélite) e micro (campo) acima e clique em **Gerar Diagnóstico** para iniciar a análise do agente.")
