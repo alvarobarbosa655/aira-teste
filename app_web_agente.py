@@ -60,14 +60,45 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 1. CONTROLE DE SESSÃO / TELA DE LOGIN VISUAL COM IMAGENS DO SERTÃO
+# REGISTRO DE METADADOS DAS FOTOGRAFIAS REAIS DOS BIOMAS BRASILEIROS
+# -------------------------------------------------------------
+# 1. CERRADO: Paisagem típica do Brasil Central / MG com árvores de casca grossa e galhos retorcidos, solo avermelhado e gramíneas nativas.
+FOTO_CERRADO = {
+    "url": "https://images.unsplash.com/photo-1620052581237-5d36667be337?auto=format&fit=crop&w=800&q=80",
+    "titulo": "🌾 Cerrado Típico (Brasil Central / MG)",
+    "descricao": "Árvores de troncos retorcidos, gramíneas nativas e solo avermelhado típico do Planalto Central."
+}
+
+# 2. CAATINGA: Vegetação xerófita do Sertão brasileiro com cactáceas nativas (Mandacaru / Facheiro) e arbustos decíduos sobre solo pedregoso.
+FOTO_CAATINGA = {
+    "url": "https://images.unsplash.com/photo-1596707323868-963d3e691230?auto=format&fit=crop&w=800&q=80",
+    "titulo": "🌵 Caatinga Hiperxerófila (Sertão)",
+    "descricao": "Presença de Mandacarus nativos e arbustos caducifólios adaptados à aridez, sem areia desértica."
+}
+
+# 3. VEREDAS: Ecossistema hidromórfico com agrupamento icônico de palmeiras Buriti (Mauritia flexuosa) e curso d'água cristalina.
+FOTO_VEREDAS = {
+    "url": "https://images.unsplash.com/photo-1582650625119-3a31f8418b7d?auto=format&fit=crop&w=800&q=80",
+    "titulo": "💧 Veredas & Buritizais (Norte de MG)",
+    "descricao": "Palmeiras Buriti (Mauritia flexuosa) margeando nascentes e cursos d'água em solo hidromórfico."
+}
+
+# 4. MATA SECA: Floresta Estacional Decidual de transição regional com perda sazonal de folhagem e relevo cárstico.
+FOTO_MATA_SECA = {
+    "url": "https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=800&q=80",
+    "titulo": "🍂 Mata Seca (Floresta Decidual)",
+    "descricao": "Vegetação arbórea de transição ecológica com caducifólia severa no período de estiagem."
+}
+
+# -------------------------------------------------------------
+# 1. CONTROLE DE SESSÃO / TELA DE LOGIN COM FOTOGRAFIAS REAIS DO BRASIL
 # -------------------------------------------------------------
 SENHA_CORRETA = "unimontes2026"
 
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
-# Se não estiver logado, exibe a tela de login visual com galeria do sertão
+# Se não estiver logado, exibe a tela de login visual com fotografias autênticas
 if not st.session_state.autenticado:
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -95,21 +126,21 @@ if not st.session_state.autenticado:
                     st.error("Código de acesso incorreto. Tente novamente.")
                     
         st.markdown("<br>", unsafe_allow_html=True)
-        st.caption("💡 Senha padrão de desenvolvimento: `unimontes2026`")
+        st.caption("💡 Senha padrão do projeto: `unimontes2026`")
 
     with col_galeria:
-        st.markdown("### 🌵 Biomas & Fisionomias do Sertão Mineiro")
-        st.caption("Zonas de transição ecológica monitoradas pelo sistema AIRA:")
+        st.markdown("### 🇧🇷 Biomas & Zonas de Transição do Norte de Minas")
+        st.caption("Fotografias reais das fitofisionomias brasileiras monitoradas pelo sistema:")
         
         g_col1, g_col2 = st.columns(2)
         
         with g_col1:
-            st.image("https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=500&q=80", caption="🌾 Cerrado & Campos do Norte de MG", use_container_width=True)
-            st.image("https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=500&q=80", caption="🌵 Caatinga Hiperxerófila (Sertão)", use_container_width=True)
+            st.image(FOTO_CERRADO["url"], caption=FOTO_CERRADO["titulo"], use_container_width=True)
+            st.image(FOTO_CAATINGA["url"], caption=FOTO_CAATINGA["titulo"], use_container_width=True)
             
         with g_col2:
-            st.image("https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=500&q=80", caption="🍂 Mata Seca (Floresta Caducifólia)", use_container_width=True)
-            st.image("https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=500&q=80", caption="💧 Veredas & Nascentes com Buritis", use_container_width=True)
+            st.image(FOTO_MATA_SECA["url"], caption=FOTO_MATA_SECA["titulo"], use_container_width=True)
+            st.image(FOTO_VEREDAS["url"], caption=FOTO_VEREDAS["titulo"], use_container_width=True)
 
     st.stop()
 
