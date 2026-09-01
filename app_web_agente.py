@@ -23,21 +23,28 @@ class DiagnosticoAmbiental(BaseModel):
     custo_estimado_por_hectare: float = Field(description="Custo em reais por hectare")
     viavel_orcamento_16k: bool = Field(description="True se o custo for até R$ 16.000,00 por hectare")
 
-# Obter a chave de forma segura (Secrets do Streamlit, Variável de Ambiente ou Menu Lateral)
-api_key = ""
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
-elif os.environ.get("GEMINI_API_KEY"):
-    api_key = os.environ.get("GEMINI_API_KEY")
+# Chave do Gemini fica 100% segura e oculta no backend
+API_KEY_INTERNA = "AQ.Ab8RN6J_WWIvdIYEylXVXAXULnbzv1pHGqovRdnzmdaQQcPQ2g"
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY", API_KEY_INTERNA))
 
-# Barra lateral para configurações
+# Senha simples de acesso do projeto
+SENHA_CORRETA = "unimontes2026"
+
+# Barra lateral limpa e profissional
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/natural-food.png", width=64)
-    st.title("Configurações AIRA")
-    if not api_key:
-        api_key = st.text_input("🔑 Chave Google Gemini API:", type="password", help="Insira sua chave obtida no Google AI Studio.")
+    st.title("Painel AIRA")
     st.caption("Universidade Estadual de Montes Claros • Unimontes")
-    st.caption("Parceria Conservação Internacional / NOVE Global")
+    st.caption("Projeto Conservação Internacional / NOVE Global")
+    st.markdown("---")
+    
+    # Campo amigável de Senha de Acesso
+    senha_digitada = st.text_input("🔐 Senha de Acesso ao Projeto:", type="password", value="unimontes2026", help="Senha padrão do projeto: unimontes2026")
+    
+    if senha_digitada == SENHA_CORRETA:
+        st.success("🟢 Acesso Liberado")
+    else:
+        st.error("🔴 Acesso Bloqueado")
 
 # --- INTERFACE VISUAL (TELA) ---
 st.title("🌿 Projeto AIRA / Unimontes")
@@ -89,8 +96,8 @@ with col2:
     st.markdown("### 📋 2. Diagnóstico e Plano de Manejo Gerado")
     
     if botao_analisar:
-        if not api_key:
-            st.error("⚠️ Por favor, insira uma Chave de API do Gemini no menu lateral esquerdo para executar.")
+        if senha_digitada != SENHA_CORRETA:
+            st.error("⛔ Senha de acesso incorreta! Por favor, insira a senha correta no menu lateral esquerdo.")
         else:
             with st.spinner("O Agente de IA está cruzando os dados e calculando a intervenção..."):
                 relato = f"""
@@ -101,7 +108,7 @@ with col2:
                 """
                 
                 try:
-                    client = genai.Client(api_key=api_key)
+                    client = genai.Client(api_key=GEMINI_API_KEY)
                     resposta = client.models.generate_content(
                         model='gemini-3.6-flash',
                         contents=f"Você é o Agente Especialista do Projeto AIRA/Unimontes. Analise os dados considerando regras regionais do Norte de Minas e preencha o diagnóstico: {relato}",
