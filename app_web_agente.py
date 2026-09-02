@@ -32,13 +32,11 @@ st.set_page_config(
 SENHA_ACESSO = "unimontes2026"
 TETO_CUSTO_HA = 16000.00
 
-# Lista de modelos ativos e testados com redundância e alta disponibilidade
+# ✅ CORREÇÃO 1: Nomes de modelos corrigidos para os que realmente existem
 MODELOS_GEMINI_FALLBACK = [
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
 ]
 
 # Galeria técnica de fitofisionomias do Norte de Minas Gerais
@@ -193,9 +191,18 @@ def chamar_agente_gemini(api_key: str, dados_campo: dict) -> DiagnosticoCompleto
                 return DiagnosticoCompleto.model_validate(dados_json)
             except Exception as e:
                 ultimo_erro = e
-                time.sleep(1.5)
+                # ✅ CORREÇÃO 2: Espera progressiva em vez de 1.5s fixo
+                time.sleep(0.5 * tentativa)
 
     raise RuntimeError(f"Falha na comunicação com o agente: {ultimo_erro}")
+
+# ✅ CORREÇÃO 3: Cache de resultados — mesmos dados = resposta instantânea
+@st.cache_data(ttl=3600, show_spinner=False)
+def chamar_agente_com_cache(_api_key: str, dados_json_str: str) -> dict:
+    """Cacheia o resultado por 1 hora para inputs idênticos."""
+    dados_campo = json.loads(dados_json_str)
+    resultado = chamar_agente_gemini(_api_key, dados_campo)
+    return resultado.model_dump()
 
 # ==========================================================================
 # GERENCIAMENTO DE SESSÃO
@@ -487,13 +494,19 @@ if btn_processar:
             "uso_anterior": uso_anterior,
             "observacoes": observacoes if observacoes else "Sem observações adicionais.",
         }
-        with st.spinner("O agente está executando a fusão dos dados e calculando o plano técnico..."):
+        # ✅ CORREÇÃO 4: st.status mostra progresso em vez de spinner genérico
+        with st.status("Processando diagnóstico multimodal...", expanded=True) as status:
             try:
-                diag_resultado = chamar_agente_gemini(chave_api, dados_input)
+                st.write("🔄 Conectando ao agente de IA e enviando dados de campo...")
+                # ✅ CORREÇÃO 3 (uso): Chama a versão com cache
+                dados_str = json.dumps(dados_input, sort_keys=True)
+                resultado_dict = chamar_agente_com_cache(chave_api, dados_str)
+                diag_resultado = DiagnosticoCompleto.model_validate(resultado_dict)
                 st.session_state.diagnostico = diag_resultado
-                st.success("Análise fitossociológica e plano de intervenção concluídos.")
+                status.update(label="✅ Diagnóstico concluído com sucesso!", state="complete")
             except Exception as ex:
                 st.session_state.diagnostico = None
+                status.update(label="❌ Falha no processamento", state="error")
                 st.error(f"Falha no processamento: {ex}")
 
 # ==========================================================================
