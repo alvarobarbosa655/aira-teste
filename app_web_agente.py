@@ -192,11 +192,11 @@ def chamar_agente_gemini(api_key: str, dados_campo: dict, status_callback=None) 
             try:
                 if status_callback:
                     if tentativa == 1 and idx == 0:
-                        status_callback(f"🔗 Conectando ao modelo `{modelo}`...")
+                        status_callback(f"Conectando ao modelo {modelo}...")
                     elif tentativa > 1:
-                        status_callback(f"🔄 Tentativa {tentativa} com `{modelo}`...")
+                        status_callback(f"Tentativa {tentativa} com {modelo}...")
                     else:
-                        status_callback(f"🔀 Alternando para modelo `{modelo}`...")
+                        status_callback(f"Alternando para modelo {modelo}...")
 
                 response = client.models.generate_content(
                     model=modelo,
@@ -210,7 +210,7 @@ def chamar_agente_gemini(api_key: str, dados_campo: dict, status_callback=None) 
                 dados_json = json.loads(response.text)
 
                 if status_callback:
-                    status_callback("✅ Resposta recebida! Validando dados...")
+                    status_callback("Resposta recebida. Validando dados...")
 
                 return DiagnosticoCompleto.model_validate(dados_json)
             except Exception as e:
@@ -514,9 +514,9 @@ if btn_processar:
             "observacoes": observacoes if observacoes else "Sem observações adicionais.",
         }
 
-        with st.status("🔬 Processando diagnóstico multimodal...", expanded=True) as status:
+        with st.status("Processando diagnóstico multimodal...", expanded=True) as status:
             try:
-                st.write("📡 Cruzando dados de satélite com observações de campo...")
+                st.write("Cruzando dados de satélite com observações de campo...")
 
                 def atualizar_status(msg):
                     st.write(msg)
@@ -526,7 +526,7 @@ if btn_processar:
                 # Tenta usar cache primeiro (instantâneo se já processou os mesmos dados)
                 try:
                     resultado_dict = chamar_agente_com_cache(chave_api, dados_str)
-                    st.write("⚡ Dados recuperados do cache!")
+                    st.write("Dados recuperados do cache.")
                 except Exception:
                     # Se não tem cache, chama direto com progresso visual
                     resultado_obj = chamar_agente_gemini(chave_api, dados_input, status_callback=atualizar_status)
@@ -535,12 +535,12 @@ if btn_processar:
                 diag_resultado = DiagnosticoCompleto.model_validate(resultado_dict)
                 st.session_state.diagnostico = diag_resultado
 
-                st.write("📊 Montando visualizações e cronograma...")
-                status.update(label="✅ Diagnóstico concluído com sucesso!", state="complete", expanded=False)
+                st.write("Montando visualizações e cronograma...")
+                status.update(label="Diagnóstico concluído com sucesso.", state="complete", expanded=False)
 
             except Exception as ex:
                 st.session_state.diagnostico = None
-                status.update(label="❌ Falha no processamento", state="error")
+                status.update(label="Falha no processamento", state="error")
                 st.error(f"Falha no processamento: {ex}")
 
 # ==========================================================================
@@ -644,7 +644,7 @@ if st.session_state.diagnostico:
                 f"""
                 <div class="card-etapa-mensal">
                     <div style="font-weight: 700; font-size: 1.1rem; color: #0F172A; margin-bottom: 0.25rem;">
-                        📅 {etapa.mes_referencia} — {etapa.titulo_fase}
+                        {etapa.mes_referencia} — {etapa.titulo_fase}
                     </div>
                     <div style="font-size: 0.92rem; color: #334155; margin-bottom: 0.4rem;">
                         <b>Operações de Campo:</b>
@@ -652,9 +652,9 @@ if st.session_state.diagnostico:
                             {''.join([f'<li>{acao}</li>' for acao in etapa.acoes_praticas])}
                         </ul>
                     </div>
-                    <div class="badge-meta">🎯 Meta: {etapa.meta_esperada}</div>
+                    <div class="badge-meta">Meta: {etapa.meta_esperada}</div>
                     <div style="font-size: 0.85rem; color: #64748B; margin-top: 0.45rem;">
-                        🔧 <b>Insumos / Ferramentas:</b> {', '.join(etapa.ferramentas_insumos)}
+                        <b>Insumos / Ferramentas:</b> {', '.join(etapa.ferramentas_insumos)}
                     </div>
                 </div>
                 """,
@@ -713,9 +713,9 @@ if st.session_state.diagnostico:
         col_esp1, col_esp2 = st.columns(2)
         for idx, esp in enumerate(p.especies_nativas_recomendadas):
             if idx % 2 == 0:
-                col_esp1.markdown(f"🌱 **{esp}**")
+                col_esp1.markdown(f"• **{esp}**")
             else:
-                col_esp2.markdown(f"🌱 **{esp}**")
+                col_esp2.markdown(f"• **{esp}**")
 
     # -----------------------------------------------------------------
     # ABA 4: ANÁLISE ORÇAMENTÁRIA E DADOS GIS
