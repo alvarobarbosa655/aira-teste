@@ -164,11 +164,16 @@ Retorne estritamente o objeto JSON validado conforme o schema Pydantic.
 """
     return prompt.strip()
 
-def chamar_agente_gemini(api_key: str, dados_campo: dict) -> DiagnosticoCompleto:
+@st.cache_resource(show_spinner=False)
+def criar_cliente_gemini(api_key: str):
+    """Reutiliza o cliente entre as reexecuções normais do Streamlit."""
     from google import genai
+    return genai.Client(api_key=api_key)
+
+def chamar_agente_gemini(api_key: str, dados_campo: dict) -> DiagnosticoCompleto:
     from google.genai import types
 
-    client = genai.Client(api_key=api_key)
+    client = criar_cliente_gemini(api_key)
     prompt = montar_prompt(dados_campo)
     ultimo_erro = None
 
@@ -219,28 +224,36 @@ def encerrar_sessao():
 st.markdown(
     """
     <style>
-    .main { background-color: #F8FAFC; }
-    
+    /*
+       As variáveis --background-color, --secondary-background-color e
+       --text-color são fornecidas pelo próprio tema ativo do Streamlit.
+       Assim, o layout acompanha automaticamente os modos claro e escuro.
+    */
+    [data-testid="stAppViewContainer"], .main {
+        background-color: var(--background-color);
+        color: var(--text-color);
+    }
+
     .header-institucional {
-        border-bottom: 2px solid #E2E8F0;
+        border-bottom: 2px solid color-mix(in srgb, var(--text-color) 18%, transparent);
         padding-bottom: 1rem;
         margin-bottom: 1.5rem;
     }
     .titulo-principal {
-        color: #0F172A;
+        color: var(--text-color);
         font-size: 1.8rem;
         font-weight: 700;
         margin-bottom: 0.2rem;
     }
     .subtitulo-institucional {
-        color: #475569;
+        color: color-mix(in srgb, var(--text-color) 72%, transparent);
         font-size: 0.95rem;
         font-weight: 500;
     }
     
     .card-bioma-destaque {
-        background-color: #FFFFFF;
-        border: 1px solid #CBD5E1;
+        background-color: var(--secondary-background-color);
+        border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
         border-left: 6px solid #1E40AF;
         border-radius: 6px;
         padding: 1.25rem;
@@ -260,7 +273,7 @@ st.markdown(
     .nome-fitofisionomia {
         font-size: 1.4rem;
         font-weight: 700;
-        color: #0F172A;
+        color: var(--text-color);
         line-height: 1.35;
         margin-bottom: 0.5rem;
         word-wrap: break-word;
@@ -268,8 +281,8 @@ st.markdown(
     }
     
     .box-indicador {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
+        background-color: var(--secondary-background-color);
+        border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
         border-radius: 8px;
         padding: 1rem 1.1rem;
         min-height: 90px;
@@ -282,7 +295,7 @@ st.markdown(
     .rotulo-indicador {
         font-size: 0.8rem;
         font-weight: 600;
-        color: #64748B;
+        color: color-mix(in srgb, var(--text-color) 65%, transparent);
         text-transform: uppercase;
         letter-spacing: 0.04em;
         margin-bottom: 0.35rem;
@@ -290,19 +303,28 @@ st.markdown(
     .valor-indicador {
         font-size: 1.18rem;
         font-weight: 700;
-        color: #0F172A;
+        color: var(--text-color);
         line-height: 1.35;
         white-space: normal;
         word-break: break-word;
     }
     
     .card-etapa-mensal {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
+        background-color: var(--secondary-background-color);
+        border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
         border-left: 5px solid #0F766E;
         border-radius: 6px;
         padding: 1.1rem 1.25rem;
         margin-bottom: 0.85rem;
+    }
+
+    /* Garante que parágrafos e listas inseridos dentro dos cards sejam legíveis. */
+    .card-bioma-destaque p,
+    .card-bioma-destaque li,
+    .card-etapa-mensal p,
+    .card-etapa-mensal li,
+    .box-indicador p {
+        color: var(--text-color);
     }
     .badge-meta {
         background-color: #F0FDFA;
