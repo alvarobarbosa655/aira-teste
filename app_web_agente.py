@@ -32,11 +32,10 @@ st.set_page_config(
 SENHA_ACESSO = "unimontes2026"
 TETO_CUSTO_HA = 16000.00
 
-# ✅ CORREÇÃO 1: Nomes de modelos corrigidos para os que realmente existem
+# ✅ CORREÇÃO 1: Nomes de modelos atualizados (série 3.x)
 MODELOS_GEMINI_FALLBACK = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
 ]
 
 # Galeria técnica de fitofisionomias do Norte de Minas Gerais
